@@ -6,9 +6,30 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+.venv/
+
+# Local data: database, SQLite WAL files, caches
+data/
 *.db
 *.sqlite3
-data/*.tmp
-.venv/
-artifacts/
-data/grant_memory_store.json
+*.sqlite3-*
+
+# OS & Editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Test & tooling artifacts
+test-results/
+playwright-report/
+.cache/
+pyproject.toml
+requirements-dev.txt
+
+# Local workspace docs, tests, examples, scripts
+docs/
+examples/
+scripts/
+tests/

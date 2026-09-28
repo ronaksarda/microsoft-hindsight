@@ -3,887 +3,1164 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GrantAnchor — Autonomous Grant Compliance & Memory Engine</title>
-  <meta name="description" content="High density dark financial terminal monitoring team grant spending against complex compliance rules." />
-
-  <!-- Fonts: Inter & JetBrains Mono -->
+  <title>GrantAnchor</title>
+  <meta name="description" content="Check grant spending against your agreement before you commit funds." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-  <!-- Tailwind CSS & Alpine.js via CDN -->
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
-          colors: {
-            terminal: {
-              bg: '#090d16',
-              panel: '#0f172a',
-              card: '#131d36',
-              border: 'rgba(51, 65, 85, 0.45)',
-              borderFocus: '#06b6d4',
-            },
-            crimson: {
-              500: '#ef4444',
-              600: '#dc2626',
-              glow: 'rgba(239, 68, 68, 0.25)',
-            },
-            emerald: {
-              400: '#34d399',
-              500: '#10b981',
-              glow: 'rgba(16, 185, 129, 0.25)',
-            },
-            cyan: {
-              400: '#22d3ee',
-              500: '#06b6d4',
-            },
-          },
-        },
-      },
-    };
-  </script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Geist', 'system-ui', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } };</script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
-
   <style>
-    body {
-      background-color: #080c14;
-      color: #e2e8f0;
-      font-family: 'Inter', system-ui, sans-serif;
-    }
     [x-cloak] { display: none !important; }
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 5px;
-      height: 5px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.6);
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(71, 85, 105, 0.5);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(100, 116, 139, 0.8);
-    }
-    @keyframes pulse-crimson {
-      0%, 100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.35); border-color: rgba(239, 68, 68, 0.8); }
-      50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.65); border-color: rgba(248, 113, 113, 1); }
-    }
-    .crimson-alert {
-      animation: pulse-crimson 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    @keyframes scanline {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(1000%); }
-    }
-    .watermark-pattern {
-      background-image: repeating-linear-gradient(
-        -45deg,
-        rgba(239, 68, 68, 0.04),
-        rgba(239, 68, 68, 0.04) 15px,
-        transparent 15px,
-        transparent 30px
-      );
-    }
+    body { background: #09090b; }
+    .num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+    .card { background: #111113; border: 1px solid #27272a; border-radius: 14px; }
+    .field { width: 100%; background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: .6rem .75rem; font-size: .875rem; color: #e4e4e7; }
+    .field:focus { outline: none; box-shadow: 0 0 0 2px rgba(52,211,153,.45); border-color: #3f3f46; }
+    .scroll::-webkit-scrollbar { width: 6px; height: 6px; } .scroll::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 6px; }
+    .fade-in { animation: fade .25s ease-out; } @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   </style>
 </head>
-<body class="min-h-screen flex flex-col" x-data="grantTerminal()" x-init="initTerminal()">
+<body class="min-h-screen text-zinc-200 font-sans antialiased" x-data="app()" x-init="init()">
 
-  <!-- TOP BAR: Financial Terminal Header & Live Ticker -->
-  <header class="bg-slate-950/95 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-[1720px] mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-4">
-      
-      <!-- Brand & Status -->
-      <div class="flex items-center gap-3.5">
-        <div class="w-8 h-8 rounded bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m0-20a8 8 0 00-8 8c0 3.5 2 6.5 5 7.7M12 2a8 8 0 018 8c0 3.5-2 6.5-5 7.7M4 10h16M7 18h10"/>
-          </svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="font-mono text-sm font-extrabold tracking-wider text-white">GRANTANCHOR</span>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-700/50 text-cyan-300">OPS TERMINAL v2.4</span>
-          </div>
-          <div class="flex items-center gap-2 text-[11px] text-slate-400">
-            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>HINDSIGHT SYNC READY</span>
-            <span class="text-slate-600">|</span>
-            <span class="text-slate-500 font-mono text-[10px]" x-text="'STORE: ' + (state.memories ? state.memories.length : 0) + ' NODES'"></span>
-          </div>
-        </div>
+  <header class="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="w-7 h-7 rounded-lg bg-emerald-400 text-zinc-950 grid place-items-center font-bold text-sm">G</div>
+        <span class="hidden sm:inline font-semibold text-white tracking-tight">GrantAnchor</span>
       </div>
-
-      <!-- Active Grant Selector & Ticker -->
-      <div class="flex items-center flex-wrap gap-4 min-w-0 max-w-full">
-        
-        <!-- Grant Dropdown -->
-        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 min-w-0 max-w-full">
-          <label for="grant-select" class="text-[10px] uppercase font-mono text-slate-400">GRANT</label>
-          <select 
-            id="grant-select"
-            x-model="activeGrantId" 
-            @change="switchGrant()"
-            class="bg-transparent font-mono text-xs font-semibold text-cyan-300 focus:outline-none cursor-pointer min-w-0 max-w-full truncate"
-          >
-            <template x-for="(g, id) in state.grants" :key="id">
-              <option :value="id" :selected="id === activeGrantId" x-text="id + ' (' + g.name + ')'" class="bg-slate-900 text-slate-200"></option>
-            </template>
-          </select>
+      <label for="grant" class="sr-only">Grant</label>
+      <select id="grant" x-show="hasGrants()" x-model="grantId" @change="switchGrant()" class="min-w-0 max-w-[55vw] sm:max-w-xs truncate bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50">
+        <template x-for="(g, id) in state.grants" :key="id"><option :value="id" :selected="id === grantId" x-text="g.name"></option></template>
+      </select>
+      <button type="button" @click="openNewGrant()" class="shrink-0 w-8 h-8 rounded-lg border border-zinc-800 hover:bg-zinc-900 text-zinc-300" aria-label="New grant" title="New grant">+</button>
+      <div class="flex-1"></div>
+      <button type="button" @click="showStatus = !showStatus" class="hidden md:flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-900" :aria-expanded="showStatus">
+        <span class="w-2 h-2 rounded-full" :class="memoryDot()"></span><span x-text="memoryLabel()"></span>
+      </button>
+      <div class="relative" @click.outside="menu = false">
+        <button type="button" @click="menu = !menu" class="w-8 h-8 rounded-full bg-zinc-800 text-zinc-200 text-xs font-semibold grid place-items-center hover:bg-zinc-700" :aria-expanded="menu" aria-label="Account menu" x-text="initials(user.name)"></button>
+        <div x-show="menu" x-cloak x-transition class="absolute right-0 mt-2 w-56 card p-2 shadow-xl">
+          <div class="px-2 py-1.5"><div class="text-sm text-white" x-text="user.name"></div><div class="text-xs text-zinc-500 truncate" x-text="user.email || 'Login disabled on this server'"></div></div>
+          <div class="border-t border-zinc-800 my-1"></div>
+          <button type="button" @click="menu=false; showStatus=true" class="md:hidden w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-zinc-800">System status</button>
+          <button type="button" @click="logout()" class="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-zinc-800 text-rose-300">Sign out</button>
         </div>
-
-        <!-- Award Budget Ticker -->
-        <div class="bg-slate-900/90 border border-slate-800 rounded px-3 py-1 flex items-center gap-3">
-          <div>
-            <div class="text-[9px] font-mono text-slate-400 uppercase tracking-wider">TOTAL AWARD</div>
-            <div class="font-mono text-xs font-bold text-white" x-text="formatCurrency(currentGrant.total_funding, currentGrant.currency)"></div>
-          </div>
-          <div class="h-6 w-px bg-slate-800"></div>
-          <div>
-            <div class="text-[9px] font-mono text-slate-400 uppercase tracking-wider">TOTAL SPENT</div>
-            <div class="font-mono text-xs font-bold text-amber-400" x-text="formatCurrency(totalSpent(), currentGrant.currency)"></div>
-          </div>
-          <div class="h-6 w-px bg-slate-800"></div>
-          <div>
-            <div class="text-[9px] font-mono text-slate-400 uppercase tracking-wider">REMAINING</div>
-            <div class="font-mono text-xs font-bold text-emerald-400" x-text="formatCurrency(currentGrant.total_funding - totalSpent(), currentGrant.currency)"></div>
-          </div>
-        </div>
-
-        <!-- Reset Button -->
-        <button 
-          @click="resetData()" 
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-mono text-slate-300 hover:text-white transition active:scale-95"
-          title="Reset local state to baseline seed data"
-        >
-          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          <span>RESET DATA</span>
-        </button>
-
       </div>
     </div>
+    <div x-show="showStatus" x-cloak x-transition class="border-t border-zinc-800 bg-zinc-950">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid sm:grid-cols-3 gap-3 text-xs">
+        <div class="card p-3"><div class="text-zinc-500">Ledger database</div><div class="mt-1 text-zinc-200" x-text="health.database ? (health.database.status === 'ok' ? 'Connected · ' + health.database.path : 'Error') : '…'"></div><div class="text-zinc-500 mt-1">Source of truth for every dollar.</div></div>
+        <div class="card p-3"><div class="text-zinc-500">Hindsight memory</div><div class="mt-1 text-zinc-200" x-text="hindsightText()"></div><div class="text-zinc-500 mt-1" x-text="syncSummary()"></div></div>
+        <div class="card p-3"><div class="text-zinc-500">AI second opinion</div><div class="mt-1 text-zinc-200" x-text="health.llm ? (health.llm.status === 'ok' ? 'On · ' + health.llm.model : health.llm.status === 'disabled' ? 'Off (no API key)' : 'Unreachable') : '…'"></div><div class="text-zinc-500 mt-1">Advisory only. It never changes a decision.</div></div>
+      </div>
+    </div>
+    <nav x-show="hasGrants()" class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scroll text-sm" role="tablist">
+      <template x-for="t in tabs" :key="t.id">
+        <button type="button" role="tab" :aria-selected="tab === t.id" @click="openTab(t.id)" class="px-3 py-2.5 border-b-2 whitespace-nowrap transition" :class="tab === t.id ? 'border-emerald-400 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'">
+          <span x-text="t.label"></span><span x-show="t.count && t.count()" class="ml-1.5 num text-[11px] text-zinc-500" x-text="t.count && t.count()"></span>
+        </button>
+      </template>
+    </nav>
   </header>
 
-  <!-- MAIN TERMINAL GRID (3-COLUMN HIGH DENSITY LAYOUT) -->
-  <main class="flex-1 max-w-[1720px] w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <template x-if="booting"><div class="py-24 text-center text-zinc-500 text-sm">Loading your grants…</div></template>
 
-    <!-- ========================================== -->
-    <!-- COLUMN 1: EXPENSE ENTRY & ATTRIBUTION (4 COL) -->
-    <!-- ========================================== -->
-    <section class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-lg p-4 flex flex-col justify-between">
-      <div>
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3.5">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-mono font-bold text-cyan-400">01</span>
-            <h2 class="text-xs font-mono uppercase tracking-wider text-slate-200 font-bold">EXPENSE ENTRY &amp; ATTRIBUTION</h2>
-          </div>
-          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400" x-text="activeGrantId"></span>
-        </div>
-
-        <!-- Form -->
-        <form @submit.prevent="runAudit()" class="space-y-3">
-          
-          <!-- Spender Selection -->
-          <div>
-            <label class="block text-[11px] font-mono text-slate-400 mb-1">TEAM MEMBER (SPENDER)</label>
-            <select 
-              x-model="form.spender_id" 
-              class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none"
-            >
-              <template x-for="tm in state.team_members" :key="tm.id">
-                <option :value="tm.id" :selected="tm.id === form.spender_id" x-text="tm.name + ' (' + tm.role + ')'"></option>
-              </template>
-            </select>
-          </div>
-
-          <!-- Vendor & Location -->
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[11px] font-mono text-slate-400 mb-1">VENDOR NAME</label>
-              <input 
-                type="text" 
-                x-model="form.vendor" 
-                placeholder="Vendor legal name" 
-                class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none"
-                required
-              />
-            </div>
-            <div>
-              <label class="block text-[11px] font-mono text-slate-400 mb-1">LOCATION</label>
-              <input 
-                type="text" 
-                x-model="form.location" 
-                placeholder="City, Country" 
-                class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Amount -->
-          <div>
-            <label class="block text-[11px] font-mono text-slate-400 mb-1">TRANSACTION AMOUNT ($)</label>
-            <div class="relative">
-              <span class="absolute left-3 top-2 font-mono text-xs text-slate-500">$</span>
-              <input 
-                type="number" 
-                step="0.01" 
-                x-model.number="form.amount" 
-                placeholder="8500.00" 
-                class="w-full bg-slate-950 border border-slate-700 rounded pl-7 pr-3 py-1.5 text-xs font-mono font-bold text-white focus:border-cyan-500 focus:outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Purpose -->
-          <div>
-            <label class="block text-[11px] font-mono text-slate-400 mb-1">TECHNICAL / MILESTONE JUSTIFICATION</label>
-            <textarea 
-              x-model="form.purpose" 
-              rows="2" 
-              placeholder="Operational justification for milestone delivery..."
-              class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs font-sans text-slate-200 focus:border-cyan-500 focus:outline-none resize-none"
-              required
-            ></textarea>
-          </div>
-
-          <!-- Category / Date / Approval -->
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label for="f-category" class="block text-[11px] font-mono text-slate-400 mb-1">CATEGORY</label>
-              <input id="f-category" type="text" x-model="form.category" list="category-options" placeholder="Auto-detect"
-                class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none" />
-              <datalist id="category-options">
-                <template x-for="c in categoryOptions()" :key="c"><option :value="c"></option></template>
-              </datalist>
-            </div>
-            <div>
-              <label for="f-date" class="block text-[11px] font-mono text-slate-400 mb-1">EXPENSE DATE</label>
-              <input id="f-date" type="date" x-model="form.expense_date"
-                class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none" />
-            </div>
-          </div>
-          <div>
-            <label for="f-approval" class="block text-[11px] font-mono text-slate-400 mb-1">PRIOR APPROVAL REF (OPTIONAL)</label>
-            <input id="f-approval" type="text" x-model="form.prior_approval_ref" placeholder="Agency approval number"
-              class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-cyan-500 focus:outline-none" />
-          </div>
-
-          <!-- Mode Switch: Toggle "Without Memory" vs "With Hindsight" -->
-          <div class="pt-2 border-t border-slate-800">
-            <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5">AUDIT MEMORY ENGINE MODE</div>
-            <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded border border-slate-800">
-              <button 
-                type="button" 
-                @click="form.mode = 'without_memory'"
-                :class="form.mode === 'without_memory' ? 'bg-slate-800 text-slate-200 border-slate-700 shadow' : 'text-slate-500 hover:text-slate-300'"
-                class="py-1.5 px-2 rounded text-[11px] font-mono font-semibold transition border border-transparent text-center"
-              >
-                WITHOUT MEMORY
-              </button>
-              <button 
-                type="button" 
-                @click="form.mode = 'with_memory'"
-                :class="form.mode === 'with_memory' ? 'bg-cyan-950 text-cyan-300 border-cyan-800 shadow shadow-cyan-950' : 'text-slate-500 hover:text-slate-300'"
-                class="py-1.5 px-2 rounded text-[11px] font-mono font-semibold transition border border-transparent text-center flex items-center justify-center gap-1"
-              >
-                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                WITH HINDSIGHT
-              </button>
-            </div>
-          </div>
-
-          <!-- Large RUN AUDIT Button -->
-          <div class="pt-2">
-            <button 
-              type="submit" 
-              :disabled="loading"
-              class="w-full py-3 rounded bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-mono text-xs font-bold tracking-wider uppercase transition shadow-lg shadow-cyan-600/20 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <template x-if="!loading">
-                <div class="flex items-center gap-2">
-                  <svg class="w-4 h-4 text-cyan-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                  </svg>
-                  <span>RUN COMPLIANCE AUDIT</span>
-                </div>
-              </template>
-              <template x-if="loading">
-                <div class="flex items-center gap-2">
-                  <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span x-text="form.mode === 'with_memory' ? 'ANALYZING WITH HINDSIGHT...' : 'ANALYZING (NO MEMORY)...'"></span>
-                </div>
-              </template>
-            </button>
-            <button type="button" @click="runCompare()" :disabled="loading"
-              class="w-full mt-2 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-mono text-[11px] font-bold tracking-wider uppercase transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-              COMPARE: WITHOUT vs WITH MEMORY
-            </button>
-          </div>
-
-        </form>
+    <!-- FIRST RUN -->
+    <section x-show="!booting && !hasGrants()" x-cloak class="max-w-2xl mx-auto py-10 fade-in">
+      <h1 class="text-2xl font-semibold text-white">Set up your first grant</h1>
+      <p class="mt-2 text-zinc-400">Upload the award letter or grant agreement. GrantAnchor reads the amount, dates and spending rules, and you check them before anything is saved.</p>
+      <div class="mt-6 card p-5 space-y-3">
+        <label class="block rounded-xl border border-dashed p-8 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; openNewGrant(); uploadFile($event.dataTransfer.files[0], true)">
+          <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md" @change="openNewGrant(); uploadFile($event.target.files[0], true); $event.target.value = ''" aria-label="Upload grant file" />
+          <span class="text-white font-medium">Upload the grant file</span>
+          <span class="block text-sm text-zinc-500 mt-1">PDF, Word (.docx) or text</span>
+        </label>
+        <button type="button" @click="openNewGrant()" class="w-full rounded-lg py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900">Enter the details by hand</button>
       </div>
-
-      <!-- Spender Legend Footer -->
-      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
-        <span>TEAM ATTRIBUTION ACTIVE</span>
-        <span x-text="state.team_members ? state.team_members.length + ' ACTIVE MEMBERS' : ''"></span>
-      </div>
+      <ol class="mt-8 space-y-2 text-sm text-zinc-400 list-decimal pl-5">
+        <li>Add the grant and check its rules.</li>
+        <li>Add the people who spend money (you're added automatically).</li>
+        <li>Check each expense before paying. Approved ones go into the ledger and Hindsight memory.</li>
+      </ol>
     </section>
 
-    <!-- ========================================== -->
-    <!-- COLUMN 2: PERSISTENT LEDGER (4 COL)       -->
-    <!-- ========================================== -->
-    <section class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-lg p-4 flex flex-col">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3.5">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-mono font-bold text-violet-400">02</span>
-          <h2 class="text-xs font-mono uppercase tracking-wider text-slate-200 font-bold">PERSISTENT COMPLIANCE LEDGER</h2>
+    <!-- OVERVIEW -->
+    <section x-show="!booting && hasGrants() && tab === 'overview'" x-cloak class="space-y-6 fade-in">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card p-5">
+          <div class="text-sm text-zinc-400">Budget left</div>
+          <div class="mt-1 num text-3xl font-semibold text-white" x-text="money(dash.remaining)"></div>
+          <div class="mt-3 h-2 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full bg-emerald-400 rounded-full" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div>
+          <div class="mt-2 text-xs text-zinc-500"><span class="num" x-text="money(dash.spent)"></span> spent of <span class="num" x-text="money(dash.total_funding)"></span></div>
         </div>
-        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-950/70 border border-violet-700/50 text-violet-300">
-          HINDSIGHT BANK
-        </span>
+        <div class="card p-5">
+          <div class="text-sm text-zinc-400">Monthly burn</div>
+          <div class="mt-1 num text-3xl font-semibold text-white" x-text="money(dash.burn_per_month)"></div>
+          <div class="mt-3 text-xs text-zinc-400" x-text="dash.runway_months != null ? `About ${dash.runway_months} months of money left at this pace.` : 'No spending yet.'"></div>
+          <div class="mt-1 text-xs text-zinc-500" x-text="dash.period ? `Grant ends ${niceDate(dash.period.end)} · ${dash.period.days_left} days to go` : ''"></div>
+        </div>
+        <div class="card p-5">
+          <div class="text-sm text-zinc-400">Time vs. money</div>
+          <div class="mt-3 space-y-2 text-xs">
+            <div><div class="flex justify-between text-zinc-400"><span>Time used</span><span class="num" x-text="pct(dash.period?.pct_elapsed)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-sky-400" :style="`width:${dash.period?.pct_elapsed || 0}%`"></div></div></div>
+            <div><div class="flex justify-between text-zinc-400"><span>Budget used</span><span class="num" x-text="pct(dash.pct_budget_used)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-emerald-400" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div></div>
+          </div>
+          <div class="mt-3 text-xs" :class="dash.pace === 'ahead' ? 'text-amber-300' : 'text-zinc-400'" x-text="paceText()"></div>
+        </div>
+        <div class="card p-5 flex items-center gap-4">
+          <svg viewBox="0 0 36 36" class="w-16 h-16 shrink-0 -rotate-90" aria-hidden="true">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#27272a" stroke-width="3.5"></circle>
+            <circle cx="18" cy="18" r="15.9" fill="none" :stroke="scoreColor(dash.health_score)" stroke-width="3.5" stroke-linecap="round" :stroke-dasharray="`${dash.health_score || 0} 100`"></circle>
+          </svg>
+          <div>
+            <div class="text-sm text-zinc-400">Compliance health</div>
+            <div class="num text-2xl font-semibold text-white"><span x-text="dash.health_score ?? '–'"></span><span class="text-sm text-zinc-500">/100</span></div>
+            <div class="text-xs text-zinc-400 mt-0.5" x-text="healthText()"></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Active Grant Rules Section -->
-      <div class="mb-4 bg-slate-950 rounded border border-slate-800/80 p-3">
-        <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-          <span>ACTIVE GRANT STIPULATIONS</span>
-          <span class="text-cyan-400" x-text="currentGrant.currency + ' CURRENCY'"></span>
-        </div>
-        <div class="space-y-2">
-          <template x-for="(rule, idx) in currentGrant.rules" :key="idx">
-            <div class="p-2 rounded bg-slate-900/90 border border-slate-800 flex items-start gap-2">
-              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 font-bold">RULE</span>
-              <p class="text-xs text-slate-300 leading-snug" x-text="rule"></p>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="card p-5 lg:col-span-5">
+          <h2 class="text-lg font-semibold text-white">Can we spend this?</h2>
+          <p class="text-sm text-zinc-400 mt-1">Fill in the details. The answer updates as you type, checked against <span class="num text-zinc-300" x-text="(dash.enforced_rules || []).length"></span> rules and <span class="num text-zinc-300" x-text="dash.entries || 0"></span> past expenses.</p>
+          <form class="mt-5 space-y-4" @submit.prevent="record()">
+            <div>
+              <label for="f-who" class="block text-sm text-zinc-300 mb-1.5">Who is spending?</label>
+              <p x-show="!state.team_members.length" class="text-sm text-amber-300 mb-1.5">Add the people who spend money first. <button type="button" class="underline" @click="openTab('team')">Go to Team</button></p>
+              <select id="f-who" x-model="form.spender_id" class="field">
+                <template x-for="m in state.team_members" :key="m.id"><option :value="m.id" :selected="m.id === form.spender_id" x-text="`${m.name} · ${m.role}`"></option></template>
+              </select>
             </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- Historical Spend Timeline -->
-      <div class="flex-1 flex flex-col min-h-0">
-        <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-          <span>SPENDING &amp; MILESTONE HISTORY</span>
-          <span class="text-slate-500 font-mono text-[10px]" x-text="filteredMemories().length + ' COMMITTED'"></span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1 max-h-[calc(100vh-380px)]">
-          <template x-for="m in filteredMemories()" :key="m.id">
-            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 transition">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="f-vendor" class="block text-sm text-zinc-300 mb-1.5">Paying whom?</label>
+                <input id="f-vendor" x-model="form.vendor" class="field" autocomplete="off" list="vendors" />
+                <datalist id="vendors"><template x-for="v in vendorOptions()" :key="v"><option :value="v"></option></template></datalist>
+              </div>
+              <div>
+                <label for="f-loc" class="block text-sm text-zinc-300 mb-1.5">Where are they based?</label>
+                <input id="f-loc" x-model="form.location" class="field" autocomplete="off" />
+                <p class="mt-1 text-xs min-h-[1rem]" :class="locHint().cls" x-text="locHint().text || 'City and country'"></p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="f-amount" class="block text-sm text-zinc-300 mb-1.5">Amount</label>
+                <div class="flex gap-2">
+                  <input id="f-amount" type="number" min="0" step="0.01" inputmode="decimal" x-model.number="form.amount" class="field num flex-1 min-w-0" />
+                  <label for="f-cur" class="sr-only">Currency</label>
+                  <select id="f-cur" x-model="form.currency" class="field num !w-24 shrink-0">
+                    <template x-for="c in currencyCodes()" :key="c"><option :value="c" :selected="c === form.currency" x-text="c"></option></template>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label for="f-date" class="block text-sm text-zinc-300 mb-1.5">Date of the expense</label>
+                <input id="f-date" type="date" x-model="form.expense_date" class="field" />
+              </div>
+            </div>
+            <template x-if="form.currency && form.currency !== grantCurrency()">
+              <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs space-y-2">
+                <div class="flex justify-between gap-3 text-zinc-400"><span x-text="fxLine()"></span><span class="num text-zinc-100 shrink-0" x-text="fxConverted()"></span></div>
+                <label class="flex items-center gap-2 text-zinc-400"><input type="checkbox" x-model="form.useOwnRate" class="accent-emerald-400" />Use my own rate</label>
+                <div x-show="form.useOwnRate" class="flex items-center gap-2"><span class="text-zinc-500 shrink-0" x-text="`1 ${form.currency} =`"></span><input type="number" min="0" step="any" x-model.number="form.fx_rate" class="field num" aria-label="Exchange rate" /><span class="text-zinc-500" x-text="grantCurrency()"></span></div>
+              </div>
+            </template>
+            <div>
+              <label for="f-purpose" class="block text-sm text-zinc-300 mb-1.5">What is it for?</label>
+              <textarea id="f-purpose" x-model="form.purpose" rows="2" class="field resize-none"></textarea>
+            </div>
+            <div>
               <div class="flex items-center justify-between mb-1.5">
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/50 font-bold" x-text="m.spender"></span>
-                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400" x-text="m.category"></span>
-                </div>
-                <span class="font-mono text-xs font-bold text-white" x-text="'$' + Number(m.amount).toLocaleString()"></span>
+                <span class="text-sm text-zinc-300">Budget category</span>
+                <span class="text-xs text-zinc-500" x-show="!form.category && preview" x-text="preview ? 'We think: ' + preview.with_memory.category : ''"></span>
               </div>
-              <p class="text-xs text-slate-300 mb-1 leading-relaxed" x-text="m.content"></p>
-              <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-900">
-                <span x-text="m.vendor || 'Vendor Verified'"></span>
-                <span x-text="formatDate(m.timestamp)"></span>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" @click="form.category = ''" class="px-2.5 py-1 rounded-full text-xs border transition" :class="!form.category ? 'bg-zinc-100 text-zinc-900 border-zinc-100' : 'border-zinc-700 text-zinc-400 hover:text-zinc-200'">Auto</button>
+                <template x-for="c in categoryOptions()" :key="c">
+                  <button type="button" @click="form.category = c" class="px-2.5 py-1 rounded-full text-xs border transition" :class="form.category === c ? 'bg-zinc-100 text-zinc-900 border-zinc-100' : 'border-zinc-700 text-zinc-400 hover:text-zinc-200'" x-text="c"></button>
+                </template>
+              </div>
+            </div>
+            <details>
+              <summary class="text-sm text-zinc-400 cursor-pointer hover:text-zinc-200 select-none">Have written approval from the funder?</summary>
+              <input x-model="form.prior_approval_ref" class="field mt-2" aria-label="Approval reference" />
+            </details>
+          </form>
+        </div>
+
+        <div class="card p-5 lg:col-span-7 min-h-[28rem] flex flex-col" aria-live="polite">
+          <template x-if="!preview && !previewing">
+            <div class="flex-1 grid place-items-center text-center px-6">
+              <div>
+                <div class="mx-auto w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 grid place-items-center text-zinc-500">?</div>
+                <h3 class="mt-4 text-white font-medium">Your answer shows up here</h3>
+                <p class="mt-1 text-sm text-zinc-400 max-w-sm">Enter who is paying and how much. GrantAnchor checks the grant rules and everything your team has already spent.</p>
               </div>
             </div>
           </template>
 
-          <template x-if="filteredMemories().length === 0">
-            <div class="text-center py-8 text-slate-600 font-mono text-xs">
-              NO PRIOR TRANSACTIONS IN LEDGER
+          <template x-if="preview">
+            <div class="flex-1 flex flex-col gap-5 fade-in" :class="previewing ? 'opacity-60 transition' : ''">
+              <div class="flex items-start gap-4">
+                <div class="w-11 h-11 rounded-xl grid place-items-center text-lg font-bold shrink-0" :class="tone(v().status).chip" x-text="tone(v().status).icon"></div>
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-xl font-semibold" :class="tone(v().status).text" x-text="tone(v().status).title"></h3>
+                  <p class="text-sm text-zinc-400 mt-0.5" x-text="headlineText()"></p>
+                </div>
+                <div class="text-right shrink-0"><div class="text-xs text-zinc-500">Risk</div><div class="num text-2xl font-semibold" :class="riskColor(v().risk_score)" x-text="v().risk_score"></div></div>
+              </div>
+              <div>
+                <div class="h-2 rounded-full overflow-hidden flex"><div class="w-[30%] bg-emerald-500/40"></div><div class="w-[40%] bg-amber-500/40"></div><div class="w-[30%] bg-rose-500/40"></div></div>
+                <div class="relative h-0"><div class="absolute -top-3 w-1 h-4 bg-white rounded transition-all" :style="`left:calc(${v().risk_score}% - 2px)`"></div></div>
+                <div class="flex justify-between text-[11px] text-zinc-500 mt-2"><span>Safe</span><span>Watch</span><span>Stop</span></div>
+              </div>
+
+              <template x-if="preview.diff.caught_by_memory.length || preview.diff.status_changed">
+                <div class="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+                  <div class="text-sm font-medium text-sky-200">Memory changed the answer</div>
+                  <p class="text-sm text-zinc-300 mt-1">On its own, this expense looks <span class="font-medium" :class="tone(preview.without_memory.status).text" x-text="tone(preview.without_memory.status).short"></span>. GrantAnchor remembered what the team already spent:</p>
+                  <ul class="mt-2 space-y-1">
+                    <template x-for="e in preview.evidence.slice(0, 4)" :key="e.id">
+                      <li class="flex justify-between gap-3 text-xs text-zinc-400"><span class="truncate" x-text="`${niceDate(e.timestamp)} · ${e.spender} · ${e.vendor}`"></span><span class="num text-zinc-200 shrink-0" x-text="money(e.amount)"></span></li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+              <template x-if="!preview.diff.caught_by_memory.length && !preview.diff.status_changed">
+                <p class="text-xs text-zinc-500">Checked against <span class="num" x-text="v().ledger_entries_considered"></span> past expenses. Nothing in the history changes this answer.</p>
+              </template>
+
+              <template x-if="v().findings.length">
+                <div>
+                  <div class="text-sm text-zinc-300 mb-2">Why</div>
+                  <ul class="space-y-2">
+                    <template x-for="f in v().findings" :key="f.rule_id + f.code">
+                      <li class="flex gap-3 rounded-lg p-3 text-sm" :class="f.severity === 'blocking' ? 'bg-rose-500/10 text-rose-100' : 'bg-amber-500/10 text-amber-100'">
+                        <span class="shrink-0 font-bold" :class="f.severity === 'blocking' ? 'text-rose-400' : 'text-amber-400'" x-text="f.severity === 'blocking' ? '✕' : '!'"></span>
+                        <span><span class="text-xs uppercase tracking-wide opacity-70" x-text="f.clause + ' · ' + (f.severity === 'blocking' ? 'blocks this' : 'heads up')"></span><br><span x-text="plain(f)"></span></span>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+
+              <template x-if="topLimits().length">
+                <div>
+                  <div class="text-sm text-zinc-300 mb-2">What this does to your limits</div>
+                  <div class="space-y-3">
+                    <template x-for="u in topLimits()" :key="u.rule_id">
+                      <div>
+                        <div class="flex justify-between text-xs text-zinc-400 gap-2"><span class="truncate" x-text="`${cap1(u.label)} (${u.window})`"></span><span class="num shrink-0" :class="u.pct_after > 100 ? 'text-rose-300' : u.pct_after >= u.warn_at_pct ? 'text-amber-300' : 'text-zinc-300'" x-text="`${money(u.projected)} of ${money(u.cap)}`"></span></div>
+                        <div class="relative mt-1.5 h-3 rounded-full bg-zinc-800 overflow-hidden flex">
+                          <div class="h-full bg-zinc-500" :style="`width:${seg(u).prior}%`" :title="'Already spent ' + money(u.prior)"></div>
+                          <div class="h-full" :class="u.pct_after > 100 ? 'bg-rose-500' : u.pct_after >= u.warn_at_pct ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${seg(u).add}%`" :title="'This expense ' + money(u.projected - u.prior)"></div>
+                          <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" :style="`left:${seg(u).cap}%`" x-show="u.pct_after > 100"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="flex gap-4 mt-2 text-[11px] text-zinc-500"><span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-zinc-500 inline-block"></i>Already spent</span><span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-emerald-400 inline-block"></i>This expense</span><span x-show="topLimits().some(u => u.pct_after > 100)" class="flex items-center gap-1"><i class="w-0.5 h-3 bg-white/80 inline-block"></i>Limit</span></div>
+                </div>
+              </template>
+
+              <template x-if="second">
+                <div class="rounded-xl border border-zinc-800 p-4 fade-in">
+                  <div class="flex items-center justify-between gap-2"><span class="text-sm text-zinc-300">AI second opinion</span><span class="text-[11px] text-zinc-500">Advisory · doesn't change the answer</span></div>
+                  <template x-if="second.with_memory.advisory.status !== 'ok'"><p class="text-sm text-zinc-500 mt-1" x-text="second.with_memory.advisory.status === 'disabled' ? 'AI review is turned off on this server.' : 'AI review was unavailable. The answer above is unaffected.'"></p></template>
+                  <template x-if="second.with_memory.advisory.status === 'ok' && !second.with_memory.advisory.findings.length"><p class="text-sm text-zinc-400 mt-1">No extra concerns.</p></template>
+                  <ul class="mt-2 space-y-1.5"><template x-for="(a, i) in second.with_memory.advisory.findings" :key="i"><li class="text-sm text-zinc-300"><span class="text-xs text-zinc-500" x-text="`${a.clause || 'Note'} · ${a.confidence} confidence: `"></span><span x-text="a.message"></span></li></template></ul>
+                  <p class="text-sm text-zinc-400 mt-2" x-show="second.with_memory.advisory.summary" x-text="second.with_memory.advisory.summary"></p>
+                  <p class="text-xs text-zinc-500 mt-2" x-show="second.recalled.length" x-text="`Used ${second.recalled.length} related memories from ${second.recalled[0]?.source === 'hindsight' ? 'Hindsight' : 'the local ledger'}.`"></p>
+                </div>
+              </template>
+
+              <div class="flex-1"></div>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <button type="button" @click="record()" :disabled="!!busy || !canRecord()" class="flex-1 rounded-lg py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950 focus:ring-emerald-200' : 'bg-zinc-800 text-zinc-500'" x-text="recordLabel()"></button>
+                <button type="button" @click="secondOpinion()" :disabled="!!busy || !formReady()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'second' ? 'Thinking…' : 'Ask AI for a second opinion'"></button>
+                <button type="button" x-show="v().status === 'CLAWBACK_RISK_DETECTED'" @click="openDraft()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900">Draft approval request</button>
+              </div>
             </div>
           </template>
         </div>
       </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="card p-5 lg:col-span-5">
+          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Spending limits</h2><span class="text-xs text-zinc-500">as of today</span></div>
+          <div class="mt-4 space-y-4">
+            <template x-for="g in dash.guardrails || []" :key="g.rule_id">
+              <div>
+                <div class="flex justify-between gap-3 text-sm"><span class="text-zinc-300 truncate" x-text="cap1(g.label)"></span><span class="num text-xs shrink-0" :class="g.state === 'over' ? 'text-rose-300' : g.state === 'warn' ? 'text-amber-300' : 'text-zinc-400'" x-text="`${money(g.used)} / ${money(g.cap)}`"></span></div>
+                <div class="mt-1.5 h-2 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full rounded-full" :class="g.state === 'over' ? 'bg-rose-500' : g.state === 'warn' ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${Math.min(100, g.pct)}%`"></div></div>
+                <div class="mt-1 text-[11px] text-zinc-500" x-text="`${g.clause} · ${g.window} · ${g.headroom >= 0 ? money(g.headroom) + ' left' : money(-g.headroom) + ' over'}`"></div>
+              </div>
+            </template>
+            <p x-show="!(dash.guardrails || []).length" class="text-sm text-zinc-500">This grant has no spending caps set up.</p>
+          </div>
+        </div>
+        <div class="card p-5 lg:col-span-7">
+          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Spending by month</h2><span class="text-xs text-zinc-500">hover a bar for details</span></div>
+          <div class="mt-6 h-64 flex items-end gap-1.5 overflow-x-auto scroll" role="img" aria-label="Monthly spending chart">
+            <template x-for="mo in dash.timeline || []" :key="mo.month">
+              <div class="flex-1 min-w-[18px] h-full flex flex-col group relative">
+                <div class="absolute left-1/2 -translate-x-1/2 -top-6 hidden group-hover:block z-10 whitespace-nowrap card px-2 py-1 text-[11px]" x-text="`${monthName(mo.month)}: ${money(sumObj(mo.by_category))}`"></div>
+                <div class="flex-1 flex flex-col justify-end">
+                  <template x-for="c in Object.keys(mo.by_category)" :key="c">
+                    <div class="w-full first:rounded-t" :style="`height:${mo.by_category[c] / maxMonth() * 100}%; background:${catColor(c)}`" :title="`${c}: ${money(mo.by_category[c])}`"></div>
+                  </template>
+                </div>
+                <div class="text-[10px] text-zinc-500 text-center mt-1" x-text="monthShort(mo.month)"></div>
+              </div>
+            </template>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
+            <template x-for="c in Object.keys(dash.by_category || {})" :key="c"><span class="flex items-center gap-1.5"><i class="w-2.5 h-2.5 rounded-sm inline-block" :style="`background:${catColor(c)}`"></i><span x-text="c"></span></span></template>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-5">
+          <h2 class="text-base font-semibold text-white">Where the money went</h2>
+          <div class="mt-4 flex items-center gap-5">
+            <div class="w-32 h-32 shrink-0 rounded-full grid place-items-center" role="img" aria-label="Spending by category" :style="`background:${donutGradient()}`">
+              <div class="w-20 h-20 rounded-full bg-[#111113] grid place-items-center text-center"><div><div class="num text-sm text-white" x-text="money(dash.spent)"></div><div class="text-[10px] text-zinc-500">spent</div></div></div>
+            </div>
+            <ul class="space-y-1.5 text-xs min-w-0 flex-1">
+              <template x-for="s in donut().slice(0, 7)" :key="s.c"><li class="flex justify-between gap-2"><span class="flex items-center gap-1.5 truncate"><i class="w-2 h-2 rounded-sm inline-block shrink-0" :style="`background:${catColor(s.c)}`"></i><span x-text="s.c" class="truncate"></span></span><span class="num text-zinc-400" x-text="Math.round(s.pct) + '%'"></span></li></template>
+            </ul>
+          </div>
+        </div>
+        <div class="card p-5">
+          <h2 class="text-base font-semibold text-white">Who spent it</h2>
+          <ul class="mt-4 space-y-3">
+            <template x-for="[name, amt] in Object.entries(dash.by_spender || {})" :key="name">
+              <li><div class="flex justify-between text-sm"><span class="text-zinc-300" x-text="name"></span><span class="num text-zinc-400 text-xs" x-text="money(amt)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-violet-400" :style="`width:${amt / maxSpender() * 100}%`"></div></div></li>
+            </template>
+          </ul>
+        </div>
+        <div class="card p-5">
+          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Recent activity</h2><button type="button" class="text-xs text-emerald-300 hover:underline" @click="openTab('ledger')">See all</button></div>
+          <ul class="mt-4 space-y-3">
+            <template x-for="m in recent()" :key="m.id">
+              <li class="flex justify-between gap-3 text-sm"><div class="min-w-0"><div class="text-zinc-200 truncate" x-text="m.vendor"></div><div class="text-xs text-zinc-500" x-text="`${niceDate(m.timestamp)} · ${m.spender} · ${m.category}`"></div></div><span class="num text-zinc-300 shrink-0" x-text="money(m.amount)"></span></li>
+            </template>
+            <li x-show="!recent().length" class="text-sm text-zinc-500">Nothing recorded yet.</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
-    <!-- ========================================== -->
-    <!-- COLUMN 3: INSTANT AUDIT VERDICT (4 COL)   -->
-    <!-- ========================================== -->
-    <section class="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-lg p-4 flex flex-col justify-between">
-      <div>
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3.5">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-mono font-bold text-amber-400">03</span>
-            <h2 class="text-xs font-mono uppercase tracking-wider text-slate-200 font-bold">INSTANT AUDIT VERDICT</h2>
-          </div>
-          <span 
-            class="text-[10px] font-mono px-2 py-0.5 rounded border"
-            :class="auditResult && !compareResult ? statusBox(auditResult.status) + ' ' + statusText(auditResult.status) : 'bg-slate-800 border-slate-700 text-slate-400'"
-            x-text="loading ? 'ANALYZING' : (compareResult ? 'COMPARE' : (auditResult ? auditResult.status : 'AWAITING RUN'))"
-          ></span>
+    <!-- LEDGER -->
+    <section x-show="!booting && hasGrants() && tab === 'ledger'" x-cloak class="space-y-4 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div><h2 class="text-lg font-semibold text-white">Ledger</h2><p class="text-sm text-zinc-400">Every recorded expense. Stored in the workspace database and copied to Hindsight memory.</p></div>
+        <div class="flex-1"></div>
+        <button type="button" @click="syncAll()" :disabled="busy === 'sync'" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'sync' ? 'Syncing…' : `Sync to Hindsight (${unsynced()} waiting)`"></button>
+        <a :href="`/api/ledger.csv?grant_id=${encodeURIComponent(grantId)}`" class="rounded-lg px-3 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white text-center">Export CSV</a>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input x-model="ledgerQ" @input.debounce.300ms="loadLedger()" class="field sm:max-w-xs" aria-label="Search ledger" />
+        <select x-model="ledgerCat" @change="loadLedger()" class="field sm:max-w-[12rem]" aria-label="Filter by category"><option value="">All categories</option><template x-for="c in categoryOptions()" :key="c"><option :value="c" x-text="c"></option></template></select>
+      </div>
+      <div class="card overflow-x-auto scroll">
+        <table class="w-full text-sm min-w-[720px]">
+          <thead class="text-xs text-zinc-500 text-left"><tr class="border-b border-zinc-800"><th class="px-4 py-3 font-medium">Date</th><th class="px-4 py-3 font-medium">Paid to</th><th class="px-4 py-3 font-medium">By</th><th class="px-4 py-3 font-medium">Category</th><th class="px-4 py-3 font-medium text-right">Amount</th><th class="px-4 py-3 font-medium">Memory</th><th class="px-4 py-3"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            <template x-for="m in ledger.items" :key="m.id">
+              <tr class="border-b border-zinc-800/60 hover:bg-zinc-900/60">
+                <td class="px-4 py-3 text-zinc-400 whitespace-nowrap num text-xs" x-text="niceDate(m.timestamp)"></td>
+                <td class="px-4 py-3"><div class="text-zinc-200" x-text="m.vendor"></div><div class="text-xs text-zinc-500 truncate max-w-xs" x-text="m.location || ''"></div></td>
+                <td class="px-4 py-3 text-zinc-300" x-text="m.spender"></td>
+                <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><i class="w-2 h-2 rounded-sm inline-block" :style="`background:${catColor(m.category)}`"></i><span x-text="m.category"></span></span></td>
+                <td class="px-4 py-3 text-right num text-zinc-100"><span x-text="money(m.amount)"></span><span x-show="m.fx" class="block text-[11px] text-zinc-500" x-text="m.fx ? money(m.fx.original_amount, m.fx.original_currency) : ''"></span><span x-show="m.edits && m.edits.length" class="block text-[10px] text-zinc-500 font-sans" :title="lastEdit(m)">edited</span></td>
+                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full" :class="syncBadge(m.sync_status).cls" :title="m.sync_error || ''" x-text="syncBadge(m.sync_status).label"></span></td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                  <button type="button" x-show="(m.sync_status === 'failed' || m.sync_status === 'pending') && health.hindsight?.status !== 'disabled'" @click="resync(m)" class="text-xs text-sky-300 hover:underline mr-3">Retry</button>
+                  <button type="button" @click="openEdit(m)" class="text-xs text-zinc-300 hover:text-white mr-3">Edit</button>
+                  <button type="button" @click="askDelete(m)" class="text-xs text-zinc-400 hover:text-rose-300">Remove</button>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="!ledger.items.length"><td colspan="7" class="px-4 py-10 text-center text-zinc-500">No expenses match.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="text-xs text-zinc-500" x-text="`${ledger.items.length} of ${ledger.total} shown`"></div>
+    </section>
+
+    <!-- MEMORY -->
+    <section x-show="!booting && hasGrants() && tab === 'memory'" x-cloak class="space-y-4 fade-in max-w-3xl">
+      <div><h2 class="text-lg font-semibold text-white">Ask memory</h2><p class="text-sm text-zinc-400">Search the team's spending history in plain words. Answers come from <span class="text-zinc-200">Hindsight</span> semantic memory when it's connected, and from the local ledger otherwise.</p></div>
+      <form class="flex gap-2" @submit.prevent="ask()">
+        <input x-model="memQ" class="field" aria-label="Question" />
+        <button type="submit" :disabled="busy === 'ask' || !memQ.trim()" class="rounded-lg px-4 text-sm font-semibold bg-emerald-400 text-zinc-950 hover:bg-emerald-300 disabled:opacity-50" x-text="busy === 'ask' ? 'Searching…' : 'Ask'"></button>
+      </form>
+      <div class="flex flex-wrap gap-2"><template x-for="s in suggestions()" :key="s"><button type="button" @click="memQ = s; ask()" class="text-xs px-3 py-1.5 rounded-full border border-zinc-700 text-zinc-400 hover:text-zinc-200" x-text="s"></button></template></div>
+      <template x-if="memRes">
+        <div class="space-y-2 fade-in">
+          <div class="text-xs text-zinc-500" x-text="`${memRes.items.length} matching expense${memRes.items.length === 1 ? '' : 's'} · ${memRes.source === 'hindsight' ? 'from Hindsight memory' : 'from the ledger'} · only entries that are in the ledger now`"></div>
+          <template x-for="(r, i) in memRes.items" :key="i">
+            <div class="card p-4"><div class="flex justify-between gap-3"><p class="text-sm text-zinc-200" x-text="r.content"></p><span class="num text-sm text-zinc-300 shrink-0" x-show="r.amount" x-text="money(r.amount)"></span></div><div class="mt-1 text-xs text-zinc-500" x-text="[r.timestamp ? niceDate(r.timestamp) : '', r.spender, r.category, r.source === 'hindsight' ? 'found by Hindsight' : 'found in ledger'].filter(Boolean).join(' · ')"></div><p x-show="r.snippet && r.snippet !== r.content" class="mt-2 text-xs text-sky-300/80" x-text="'Hindsight remembered: ' + r.snippet"></p></div>
+          </template>
+          <p x-show="!memRes.items.length" class="text-sm text-zinc-500">Nothing found. Try different words.</p>
+        </div>
+      </template>
+    </section>
+
+    <!-- HISTORY -->
+    <section x-show="!booting && hasGrants() && tab === 'history'" x-cloak class="space-y-4 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div><h2 class="text-lg font-semibold text-white">Check history</h2><p class="text-sm text-zinc-400">Every check anyone ran, what the answer was, and why.</p></div>
+        <div class="flex-1"></div>
+        <select x-model="histFilter" class="field sm:max-w-[14rem]" aria-label="Filter history"><option value="">All answers</option><option value="APPROVED">Good to go</option><option value="APPROVED_WITH_WARNINGS">Careful</option><option value="CLAWBACK_RISK_DETECTED">Stopped</option></select>
+      </div>
+      <div class="space-y-2">
+        <template x-for="h in history.filter(h => !histFilter || h.status === histFilter)" :key="h.id">
+          <details class="card p-4">
+            <summary class="flex items-center gap-3 cursor-pointer list-none">
+              <span class="w-7 h-7 rounded-lg grid place-items-center text-xs font-bold shrink-0" :class="['delete', 'grant'].includes(h.kind) ? 'bg-zinc-800 text-zinc-400' : tone(h.status).chip" x-text="{ delete: '−', grant: '⚙', edit: '✎' }[h.kind] || tone(h.status).icon"></span>
+              <div class="min-w-0 flex-1"><div class="text-sm text-zinc-200 truncate" x-text="historyTitle(h)"></div><div class="text-xs text-zinc-500" x-text="historySub(h)"></div></div>
+              <span class="num text-sm text-zinc-300 shrink-0" x-text="h.amount != null ? money(h.amount) : ''"></span>
+              <span class="num text-xs shrink-0 w-8 text-right" :class="riskColor(h.risk_score)" x-text="h.risk_score ?? ''"></span>
+            </summary>
+            <ul class="mt-3 space-y-1.5 pl-10">
+              <template x-for="(f, i) in h.findings || []" :key="i"><li class="text-xs" :class="f.severity === 'blocking' ? 'text-rose-300' : 'text-amber-300'" x-text="`${f.clause}: ${f.message}`"></li></template>
+              <li x-show="h.reason && h.kind !== 'grant'" class="text-xs text-zinc-400" x-text="'Reason: ' + h.reason"></li>
+              <template x-for="(v, k) in Object.fromEntries(Object.entries(h.changes || {}).filter(([k]) => k !== 'fx'))" :key="k"><li class="text-xs text-zinc-400" x-text="`${k === 'timestamp' ? 'date' : k}: ${fmtVal(k, v[0])} → ${fmtVal(k, v[1])}`"></li></template>
+              <li x-show="!['delete', 'grant'].includes(h.kind) && !(h.findings || []).length" class="text-xs text-zinc-500">No issues found.</li>
+            </ul>
+          </details>
+        </template>
+        <p x-show="!history.length" class="text-sm text-zinc-500 py-10 text-center">No checks yet. Record an expense or ask for a second opinion from the Overview tab.</p>
+      </div>
+    </section>
+
+    <!-- GRANT SETUP -->
+    <section x-show="!booting && hasGrants() && tab === 'setup'" x-cloak class="space-y-6 fade-in max-w-5xl">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div><h2 class="text-lg font-semibold text-white">Grant setup</h2><p class="text-sm text-zinc-400">The details and rules GrantAnchor checks every expense against. Changes apply to the next check.</p></div>
+        <div class="flex-1"></div>
+        <button type="button" @click="openNewGrant()" class="rounded-lg px-3 py-2 text-sm bg-emerald-400 text-zinc-950 font-semibold hover:bg-emerald-300">New grant</button>
+      </div>
+
+      <form class="card p-5 grid grid-cols-1 sm:grid-cols-6 gap-3" @submit.prevent="saveDetails()">
+        <div class="sm:col-span-6 flex items-center justify-between"><h3 class="text-sm font-medium text-zinc-200">Details</h3><span class="text-xs text-zinc-500 num" x-text="grantId"></span></div>
+        <div class="sm:col-span-3"><label for="g-name" class="block text-sm text-zinc-300 mb-1.5">Grant name</label><input id="g-name" x-model="gEdit.name" class="field" required /></div>
+        <div class="sm:col-span-2"><label for="g-amt" class="block text-sm text-zinc-300 mb-1.5">Total award</label><input id="g-amt" type="number" min="1" step="0.01" x-model.number="gEdit.total_funding" class="field num" required /></div>
+        <div><label for="g-cur" class="block text-sm text-zinc-300 mb-1.5">Currency</label><input id="g-cur" x-model="gEdit.currency" maxlength="3" class="field uppercase" required /></div>
+        <div class="sm:col-span-2"><label for="g-start" class="block text-sm text-zinc-300 mb-1.5">Starts</label><input id="g-start" type="date" x-model="gEdit.start_date" class="field" required /></div>
+        <div class="sm:col-span-2"><label for="g-end" class="block text-sm text-zinc-300 mb-1.5">Ends</label><input id="g-end" type="date" x-model="gEdit.end_date" class="field" required /></div>
+        <div class="sm:col-span-2"><label for="g-home" class="block text-sm text-zinc-300 mb-1.5">Home country (ISO code)</label><input id="g-home" x-model="gEdit.home_country" maxlength="2" class="field uppercase" /></div>
+        <div class="sm:col-span-6 flex flex-wrap gap-2 justify-end pt-1">
+          <button type="button" @click="archiveGrant()" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 text-zinc-400 hover:text-rose-300">Archive grant</button>
+          <button type="submit" :disabled="busy === 'grant'" class="rounded-lg px-4 py-2 text-sm bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-50" x-text="busy === 'grant' ? 'Saving…' : 'Save details'"></button>
+        </div>
+      </form>
+
+      <div class="card p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div><h3 class="text-sm font-medium text-zinc-200">Rules we check automatically</h3><p class="text-xs text-zinc-500">Blocking rules stop an expense. Warning rules let it through in amber.</p></div>
+          <div class="flex-1"></div>
+          <button type="button" @click="importOpen = !importOpen" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 hover:bg-zinc-900" x-text="importOpen ? 'Close import' : 'Import from agreement'"></button>
+          <button type="button" @click="openRule()" class="rounded-lg px-3 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white">Add rule</button>
         </div>
 
-        <!-- Initial Idle State -->
-        <template x-if="!auditResult && !compareResult && !loading && !error">
-          <div class="text-center py-16 px-4 border border-dashed border-slate-800 rounded-lg">
-            <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-800/80 flex items-center justify-center">
-              <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
-              </svg>
+        <div x-show="importOpen" x-cloak class="mt-4 rounded-xl border border-zinc-800 p-4 space-y-3">
+<label class="block rounded-xl border border-dashed p-4 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], false)">
+            <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" @change="uploadFile($event.target.files[0], false); $event.target.value = ''" />
+            <span class="text-sm text-zinc-300" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
+            <span class="block text-xs text-zinc-500 mt-0.5">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
+          </label>
+          <p x-show="importFile" class="text-xs text-zinc-500" x-text="importFile"></p>
+          <div class="text-center text-xs text-zinc-600">or paste the text</div>
+          <label for="imp-text" class="sr-only">Agreement text</label>
+          <textarea id="imp-text" x-model="importText" rows="6" class="field resize-y text-xs"></textarea>
+          <div class="flex items-center gap-3"><button type="button" @click="runImport(false)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-4 py-2 text-sm bg-emerald-400 text-zinc-950 font-semibold hover:bg-emerald-300 disabled:opacity-50" x-text="busy === 'import' ? 'Reading…' : 'Read agreement'"></button><span class="text-xs text-zinc-500">Nothing is saved until you choose what to add.</span></div>
+          <template x-if="importRes && !importRes.forNew">
+            <div class="space-y-3 fade-in">
+              <p class="text-xs text-zinc-500" x-text="importRes.source === 'ai' ? 'Read by AI. Check each rule before adding.' : 'AI is off, so only simple caps and foreign-contractor clauses were recognised.'"></p>
+              <template x-for="(p, i) in importRes.policies" :key="p.id"><label class="flex gap-3 items-start text-sm card p-3 cursor-pointer"><input type="checkbox" x-model="importPick[i]" class="mt-1 accent-emerald-400" /><span><span class="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 mr-1" x-text="ruleKind(p.type)"></span><span class="text-zinc-200" x-text="ruleText(p)"></span><br><span class="text-xs text-zinc-500" x-text="p.description"></span></span></label></template>
+              <template x-if="importRes.text_only.length"><div><div class="text-xs text-zinc-400 mb-1">Clauses kept as text (reviewed by the AI second opinion):</div><ul class="text-xs text-zinc-500 space-y-1 list-disc pl-5"><template x-for="t in importRes.text_only.slice(0, 8)" :key="t"><li x-text="t"></li></template></ul></div></template>
+              <div class="flex gap-2"><button type="button" @click="applyImport()" class="rounded-lg px-4 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white" x-text="`Add ${importPick.filter(Boolean).length} rules`"></button><button type="button" x-show="importRes.grant.total_funding || importRes.grant.start_date" @click="fillDetails(importRes.grant, gEdit); toast('Details filled in. Review and save.')" class="rounded-lg px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900">Use detected details</button></div>
             </div>
-            <p class="font-mono text-xs font-semibold text-slate-400 mb-1">NO AUDIT COMMENCED</p>
-            <p class="text-xs text-slate-500 max-w-xs mx-auto">
-              Enter transaction parameters and click "RUN COMPLIANCE AUDIT".
-            </p>
-          </div>
-        </template>
+          </template>
+        </div>
 
-        <!-- Loading State -->
-        <template x-if="loading">
-          <div class="py-16 text-center">
-            <div class="inline-block relative w-12 h-12 mb-3">
-              <div class="w-12 h-12 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin"></div>
+        <div class="mt-4 grid sm:grid-cols-2 gap-3">
+          <template x-for="p in currentGrant().policies || []" :key="p.id">
+            <div class="rounded-xl border border-zinc-800 p-4 flex flex-col">
+              <div class="flex items-center gap-2"><span class="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300" x-text="ruleKind(p.type)"></span><span class="text-xs text-zinc-500 truncate" x-text="p.clause"></span><span x-show="p.severity === 'warning'" class="text-[11px] text-amber-300">warning only</span></div>
+              <p class="mt-2 text-sm text-zinc-200 flex-1" x-text="ruleText(p)"></p>
+              <div class="mt-3 flex gap-3 text-xs"><button type="button" @click="openRule(p)" class="text-zinc-300 hover:text-white">Edit</button><button type="button" @click="removeRule(p)" class="text-zinc-500 hover:text-rose-300">Delete</button></div>
             </div>
-            <p class="font-mono text-xs font-semibold text-cyan-400">CORRELATING GRANT CLAUSES...</p>
-            <p class="text-xs text-slate-500 mt-1">Cross-referencing historical team memory ledger</p>
-          </div>
-        </template>
-
-        <!-- Error State -->
-        <template x-if="error && !loading">
-          <div class="p-3 rounded bg-red-950/40 border border-red-800 text-xs font-mono text-red-300" role="alert" x-text="error"></div>
-        </template>
-
-        <!-- VERDICT (single audit) -->
-        <template x-if="auditResult && !loading && !compareResult">
-          <div class="space-y-3">
-            <div class="p-4 rounded-lg border" :class="statusBox(auditResult.status)">
-              <div class="flex items-center justify-between gap-2 mb-1">
-                <span class="font-mono text-sm font-extrabold tracking-wide" :class="statusText(auditResult.status)" x-text="statusLabel(auditResult.status)"></span>
-                <span class="font-mono text-xs px-2 py-0.5 rounded bg-slate-950/70 border border-slate-700" :class="riskText(auditResult.risk_score)" x-text="'RISK ' + auditResult.risk_score + '/100'"></span>
-              </div>
-              <p class="text-xs text-slate-300" x-text="auditResult.remediation"></p>
-              <p class="text-[10px] font-mono text-slate-500 mt-2" x-text="auditResult.category + ' · ' + (auditResult.expense_date || '').slice(0,10) + ' · ' + (auditResult.committed ? 'COMMITTED TO LEDGER' : 'NOT COMMITTED') + ' · ENGINE ' + auditResult.engine_version"></p>
-            </div>
-
-            <template x-if="blocking(auditResult).length">
-              <div class="p-3 rounded-lg bg-slate-950 border border-red-900/60">
-                <div class="text-[10px] font-mono text-red-400 uppercase tracking-wider mb-2 font-bold">BLOCKING VIOLATIONS</div>
-                <div class="space-y-2">
-                  <template x-for="f in blocking(auditResult)" :key="f.rule_id + f.code">
-                    <div class="p-2 rounded bg-red-950/20 border border-red-800/40 text-xs text-red-200 font-mono leading-relaxed" x-text="f.message"></div>
-                  </template>
-                </div>
-              </div>
-            </template>
-
-            <template x-if="warnings(auditResult).length">
-              <div class="p-3 rounded-lg bg-slate-950 border border-amber-900/60">
-                <div class="text-[10px] font-mono text-amber-400 uppercase tracking-wider mb-2 font-bold">WARNINGS</div>
-                <div class="space-y-2">
-                  <template x-for="f in warnings(auditResult)" :key="f.rule_id + f.code">
-                    <div class="p-2 rounded bg-amber-950/20 border border-amber-800/40 text-xs text-amber-200 font-mono leading-relaxed" x-text="f.message"></div>
-                  </template>
-                </div>
-              </div>
-            </template>
-
-            <template x-if="auditResult.utilization && auditResult.utilization.length">
-              <div class="p-3 rounded bg-slate-950 border border-slate-800">
-                <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2">CAP UTILIZATION (AFTER THIS EXPENSE)</div>
-                <div class="space-y-2">
-                  <template x-for="u in auditResult.utilization" :key="u.rule_id">
-                    <div>
-                      <div class="flex justify-between text-[11px] font-mono text-slate-300 gap-2">
-                        <span class="truncate" x-text="u.clause + ' · ' + u.label + ' (' + u.window + ')'"></span>
-                        <span class="shrink-0" x-text="money(u.projected) + ' / ' + money(u.cap) + ' = ' + u.pct_after + '%'"></span>
-                      </div>
-                      <div class="h-1.5 rounded bg-slate-800 overflow-hidden mt-1" role="progressbar" :aria-valuenow="u.pct_after" aria-valuemin="0" aria-valuemax="100">
-                        <div class="h-full" :class="barColor(u)" :style="'width:' + Math.min(100, u.pct_after) + '%'"></div>
-                      </div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </template>
-
-            <div class="p-3 rounded bg-slate-950 border border-slate-800">
-              <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1">
-                ADVISORY (LLM, NON-BINDING) · <span x-text="auditResult.advisory.status.toUpperCase()"></span>
-              </div>
-              <template x-if="!auditResult.advisory.findings.length">
-                <p class="text-xs text-slate-500">No advisory notes.</p>
-              </template>
-              <template x-for="(a, i) in auditResult.advisory.findings" :key="i">
-                <p class="text-xs text-slate-300 mb-1"><span class="font-mono text-slate-500" x-text="'[' + a.confidence + '] ' + (a.clause ? a.clause + ': ' : '')"></span><span x-text="a.message"></span></p>
-              </template>
-              <p class="text-xs text-slate-400 mt-1" x-show="auditResult.advisory.summary" x-text="auditResult.advisory.summary"></p>
-            </div>
-
-            <template x-if="blocking(auditResult).length">
-              <button type="button" @click="openWaiverModal()"
-                class="w-full py-2.5 rounded bg-red-700 hover:bg-red-600 text-white font-mono text-xs font-bold uppercase tracking-wider transition focus:outline-none focus:ring-2 focus:ring-red-400">
-                GENERATE PRIOR-APPROVAL REQUEST
-              </button>
-            </template>
-          </div>
-        </template>
-
-        <!-- COMPARE VIEW -->
-        <template x-if="compareResult && !loading">
-          <div class="space-y-3">
-            <div class="p-3 rounded bg-cyan-950/30 border border-cyan-800/60 text-xs text-cyan-200 font-mono" x-text="compareResult.diff.summary"></div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <template x-for="side in ['without_memory', 'with_memory']" :key="side">
-                <div class="p-3 rounded border" :class="statusBox(compareResult[side].status)">
-                  <div class="text-[10px] font-mono text-slate-400 uppercase mb-1" x-text="side.replace('_', ' ')"></div>
-                  <div class="font-mono text-xs font-bold" :class="statusText(compareResult[side].status)" x-text="statusLabel(compareResult[side].status)"></div>
-                  <div class="font-mono text-[11px] mt-1" :class="riskText(compareResult[side].risk_score)" x-text="'RISK ' + compareResult[side].risk_score"></div>
-                  <div class="text-[11px] text-slate-400 mt-1" x-text="compareResult[side].cumulative_spend"></div>
-                </div>
-              </template>
-            </div>
-            <div class="p-3 rounded bg-slate-950 border border-slate-800">
-              <div class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2">CAUGHT ONLY WITH MEMORY</div>
-              <template x-if="!compareResult.diff.caught_by_memory.length">
-                <p class="text-xs text-slate-500">Nothing extra. Both modes agree on findings.</p>
-              </template>
-              <template x-for="f in compareResult.diff.caught_by_memory" :key="f.rule_id + f.code">
-                <div class="p-2 mb-1 rounded text-xs font-mono border" :class="f.severity === 'blocking' ? 'bg-red-950/20 border-red-800/40 text-red-200' : 'bg-amber-950/20 border-amber-800/40 text-amber-200'" x-text="f.message"></div>
-              </template>
-            </div>
-            <p class="text-[10px] font-mono text-slate-500">Compare never commits to the ledger.</p>
-          </div>
-        </template>
-
+          </template>
+        </div>
+        <p x-show="!(currentGrant().policies || []).length" class="mt-4 text-sm text-zinc-500">No automatic rules yet. Add one, or import them from the agreement.</p>
       </div>
 
-      <!-- Verdict Footer -->
-      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
-        <span x-text="compareResult ? 'COMPARE MODE' : (auditResult ? 'AUDIT MODE: ' + auditResult.mode.toUpperCase() : 'AUDIT READY')"></span>
-        <span class="text-slate-400" x-text="lastAuditTime ? 'AUDITED: ' + lastAuditTime : ''"></span>
+      <div class="card p-5">
+        <h3 class="text-sm font-medium text-zinc-200">Other clauses</h3>
+        <p class="text-xs text-zinc-500">Obligations that can't be checked automatically (reporting, record keeping). The AI second opinion reads these.</p>
+        <ul class="mt-3 space-y-2"><template x-for="(r, i) in textOnlyRules()" :key="i"><li class="flex gap-3 text-sm text-zinc-400 rounded-lg border border-zinc-800 p-3"><span class="flex-1" x-text="r"></span><button type="button" @click="removeClause(r)" class="text-xs text-zinc-500 hover:text-rose-300">Delete</button></li></template></ul>
+        <form class="mt-3 flex gap-2" @submit.prevent="addClause()"><input x-model="newClause" class="field" aria-label="New clause" /><button type="submit" class="rounded-lg px-4 text-sm border border-zinc-700 hover:bg-zinc-900">Add</button></form>
       </div>
     </section>
 
+    <!-- TEAM -->
+    <section x-show="!booting && hasGrants() && tab === 'team'" x-cloak class="space-y-4 fade-in max-w-2xl">
+      <div><h2 class="text-lg font-semibold text-white">Team</h2><p class="text-sm text-zinc-400">People who spend grant money. Per-person limits apply to each of them.</p></div>
+      <form class="card p-4 grid sm:grid-cols-[1fr_1fr_auto] gap-2" @submit.prevent="addMember()">
+        <input x-model="newMember.name" class="field" aria-label="Name" required />
+        <input x-model="newMember.role" class="field" aria-label="Role" />
+        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-semibold bg-emerald-400 text-zinc-950 hover:bg-emerald-300">Add</button>
+      </form>
+      <ul class="card divide-y divide-zinc-800">
+        <template x-for="m in state.team_members" :key="m.id">
+          <li class="flex flex-wrap items-center gap-3 p-4">
+            <span class="w-8 h-8 rounded-full bg-zinc-800 grid place-items-center text-xs" x-text="initials(m.name)"></span>
+            <template x-if="memberEdit.id !== m.id">
+              <div class="flex-1 min-w-0 flex items-center gap-3"><div class="flex-1 min-w-0"><div class="text-sm text-zinc-200" x-text="m.name"></div><div class="text-xs text-zinc-500" x-text="m.role"></div></div><span class="num text-xs text-zinc-400" x-text="money((dash.by_spender || {})[m.name] || 0)"></span><button type="button" @click="memberEdit = { id: m.id, name: m.name, role: m.role }" class="text-xs text-zinc-300 hover:text-white">Edit</button><button type="button" @click="removeMember(m)" class="text-xs text-zinc-400 hover:text-rose-300">Remove</button></div>
+            </template>
+            <template x-if="memberEdit.id === m.id">
+              <form class="flex-1 min-w-0 flex flex-wrap gap-2" @submit.prevent="saveMember()"><input x-model="memberEdit.name" class="field flex-1 min-w-[8rem]" aria-label="Name" required /><input x-model="memberEdit.role" class="field flex-1 min-w-[8rem]" aria-label="Role" /><button type="submit" class="rounded-lg px-3 text-sm bg-zinc-100 text-zinc-900">Save</button><button type="button" @click="memberEdit = {}" class="rounded-lg px-3 text-sm border border-zinc-700">Cancel</button></form>
+            </template>
+          </li>
+        </template>
+      </ul>
+    </section>
   </main>
 
-  <!-- WAIVER PREVIEW & DOWNLOAD MODAL -->
-  <div 
-    x-show="showWaiver" 
-    x-cloak
-    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-    @keydown.escape.window="showWaiver = false"
-  >
-    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-2xl w-full p-5 shadow-2xl flex flex-col max-h-[90vh]">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-        <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-          <h3 class="font-mono text-sm font-bold text-white uppercase">PRIOR-APPROVAL REQUEST (DRAFT)</h3>
+  <!-- Rule editor -->
+  <div x-show="ruleOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="ruleOpen = false" role="dialog" aria-modal="true" aria-labelledby="rule-title">
+    <form class="card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="saveRule()">
+      <h3 id="rule-title" class="text-white font-semibold" x-text="rd._editing ? 'Edit rule' : 'Add a rule'"></h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label for="rd-type" class="block text-sm text-zinc-300 mb-1.5">Kind of rule</label>
+          <select id="rd-type" x-model="rd.type" class="field"><template x-for="k in ruleKinds" :key="k"><option :value="k" x-text="ruleKind(k)"></option></template></select></div>
+        <div><label for="rd-clause" class="block text-sm text-zinc-300 mb-1.5">Clause label</label><input id="rd-clause" x-model="rd.clause" class="field" /></div>
+      </div>
+
+      <template x-if="['category_cap','spender_cap','vendor_cap'].includes(rd.type)">
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div><label for="rd-cap" class="block text-sm text-zinc-300 mb-1.5">Limit amount</label><input id="rd-cap" type="number" min="0.01" step="0.01" x-model.number="rd.cap" class="field num" required /></div>
+            <div><label for="rd-cat" class="block text-sm text-zinc-300 mb-1.5">Category</label><input id="rd-cat" x-model="rd.category" list="category-list" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty to cover all spending.</p></div>
+          </div>
+          <div x-show="rd.type === 'spender_cap'"><label for="rd-sp" class="block text-sm text-zinc-300 mb-1.5">Applies to</label><select id="rd-sp" x-model="rd.spender" class="field"><option value="">Each person separately</option><template x-for="m in state.team_members" :key="m.id"><option :value="m.id" x-text="m.name"></option></template></select></div>
+          <div x-show="rd.type === 'vendor_cap'"><label for="rd-v" class="block text-sm text-zinc-300 mb-1.5">Vendor</label><input id="rd-v" x-model="rd.vendor" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty to limit each vendor separately.</p></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label for="rd-w" class="block text-sm text-zinc-300 mb-1.5">Over what time?</label><select id="rd-w" x-model="rd.windowKind" class="field"><option value="none">The whole grant</option><option value="rolling">Any rolling period</option><option value="fiscal">Each fiscal period</option></select></div>
+            <div x-show="rd.windowKind === 'rolling'"><label for="rd-days" class="block text-sm text-zinc-300 mb-1.5">Days</label><input id="rd-days" type="number" min="1" x-model.number="rd.days" class="field num" /></div>
+            <div x-show="rd.windowKind === 'fiscal'"><label for="rd-per" class="block text-sm text-zinc-300 mb-1.5">Period</label><select id="rd-per" x-model="rd.period" class="field"><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Year</option></select></div>
+          </div>
+          <div x-show="rd.windowKind === 'fiscal'"><label for="rd-sm" class="block text-sm text-zinc-300 mb-1.5">Fiscal year starts in month</label><input id="rd-sm" type="number" min="1" max="12" x-model.number="rd.start_month" class="field num" /></div>
+          <div><label for="rd-warn" class="block text-sm text-zinc-300 mb-1.5">Warn when it reaches <span class="num" x-text="rd.warn_at_pct + '%'"></span></label><input id="rd-warn" type="range" min="50" max="100" step="5" x-model.number="rd.warn_at_pct" class="w-full accent-emerald-400" /></div>
         </div>
-        <button @click="showWaiver = false" aria-label="Close" class="text-slate-400 hover:text-white font-mono text-sm">&times;</button>
-      </div>
+      </template>
 
-      <div class="flex-1 overflow-y-auto bg-slate-950 rounded p-4 border border-slate-800 font-mono text-xs text-slate-300 custom-scrollbar whitespace-pre-wrap leading-relaxed" x-text="waiverText"></div>
+      <template x-if="rd.type === 'jurisdiction'">
+        <div class="space-y-3">
+          <div><label for="rd-jm" class="block text-sm text-zinc-300 mb-1.5">Vendors must be</label><select id="rd-jm" x-model="rd.jMode" class="field"><option value="allow">Only in these countries</option><option value="block">Not in these countries</option></select></div>
+          <div><label for="rd-cc" class="block text-sm text-zinc-300 mb-1.5">Countries (ISO codes or EU)</label><input id="rd-cc" x-model="rd.countries" class="field" required /><p class="mt-1 text-xs text-zinc-500">Two-letter codes separated by commas, or EU.</p></div>
+          <div><label for="rd-jc" class="block text-sm text-zinc-300 mb-1.5">For these categories</label><input id="rd-jc" x-model="rd.categories" class="field" /><p class="mt-1 text-xs text-zinc-500">Separated by commas. Leave empty for all spending.</p></div>
+          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" x-model="rd.waivable" class="accent-emerald-400" />Allowed with written approval from the funder</label>
+        </div>
+      </template>
+      <template x-if="rd.type === 'prior_approval'">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label for="rd-th" class="block text-sm text-zinc-300 mb-1.5">Needs approval above</label><input id="rd-th" type="number" min="0" step="0.01" x-model.number="rd.threshold" class="field num" required /></div>
+          <div><label for="rd-pc" class="block text-sm text-zinc-300 mb-1.5">Categories</label><input id="rd-pc" x-model="rd.categories" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty for any category.</p></div>
+        </div>
+      </template>
+      <template x-if="rd.type === 'blocked_list'">
+        <div class="space-y-3">
+          <div><label for="rd-bc" class="block text-sm text-zinc-300 mb-1.5">Never-allowed categories</label><input id="rd-bc" x-model="rd.categories" class="field" /></div>
+          <div><label for="rd-bv" class="block text-sm text-zinc-300 mb-1.5">Never-allowed vendors</label><input id="rd-bv" x-model="rd.vendors" class="field" /><p class="mt-1 text-xs text-zinc-500">Separated by commas.</p></div>
+        </div>
+      </template>
+      <template x-if="rd.type === 'allowed_categories'">
+        <div><label for="rd-ac" class="block text-sm text-zinc-300 mb-1.5">Only these categories are allowed</label><input id="rd-ac" x-model="rd.categories" class="field" required /></div>
+      </template>
+      <template x-if="rd.type === 'grant_period'">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label for="rd-s" class="block text-sm text-zinc-300 mb-1.5">From</label><input id="rd-s" type="date" x-model="rd.start" class="field" required /></div>
+          <div><label for="rd-e" class="block text-sm text-zinc-300 mb-1.5">To</label><input id="rd-e" type="date" x-model="rd.end" class="field" required /></div>
+        </div>
+      </template>
 
-      <div class="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-slate-800">
-        <button @click="showWaiver = false" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">
-          CLOSE
-        </button>
-        <button @click="downloadWaiverFile()" class="px-4 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-xs font-mono font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-cyan-900">
-          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          <span>DOWNLOAD DRAFT (.TXT)</span>
-        </button>
+      <div><label for="rd-desc" class="block text-sm text-zinc-300 mb-1.5">Original wording (optional)</label><textarea id="rd-desc" x-model="rd.description" rows="2" class="field resize-none text-xs"></textarea></div>
+      <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" x-model="rd.warningOnly" class="accent-amber-400" />Warn only, don't block</label>
+      <p x-show="ruleError" class="text-sm text-rose-300 bg-rose-500/10 rounded-lg px-3 py-2" x-text="ruleError"></p>
+      <div class="flex justify-end gap-2 pt-1"><button type="button" @click="ruleOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="submit" :disabled="busy === 'rule'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'rule' ? 'Saving…' : 'Save rule'"></button></div>
+    </form>
+  </div>
+
+  <!-- New grant -->
+  <div x-show="newOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="newOpen = false" role="dialog" aria-modal="true" aria-labelledby="ng-title">
+    <form class="card p-5 w-full max-w-xl max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="createGrant()">
+      <h3 id="ng-title" class="text-white font-semibold">New grant</h3>
+      <p class="text-sm text-zinc-400">Upload or paste the agreement to fill this in automatically, or type the details.</p>
+      <label class="block rounded-xl border border-dashed p-4 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], true)">
+            <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" @change="uploadFile($event.target.files[0], true); $event.target.value = ''" />
+            <span class="text-sm text-zinc-300" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
+            <span class="block text-xs text-zinc-500 mt-0.5">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
+          </label>
+          <p x-show="importFile" class="text-xs text-zinc-500" x-text="importFile"></p>
+          <div class="text-center text-xs text-zinc-600">or paste the text</div>
+      <textarea x-model="importText" rows="4" class="field resize-y text-xs" aria-label="Agreement text"></textarea>
+      <button type="button" @click="runImport(true)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-3 py-1.5 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'import' ? 'Reading…' : 'Fill in from agreement'"></button>
+      <p x-show="importRes && importRes.forNew" class="text-xs text-emerald-300" x-text="importRes ? `Found ${importRes.policies.length} rules and ${importRes.text_only.length} other clauses. They'll be added with the grant.` : ''"></p>
+      <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+        <div class="sm:col-span-6"><label for="ng-name" class="block text-sm text-zinc-300 mb-1.5">Grant name</label><input id="ng-name" x-model="gNew.name" class="field" required /></div>
+        <div class="sm:col-span-4"><label for="ng-amt" class="block text-sm text-zinc-300 mb-1.5">Total award</label><input id="ng-amt" type="number" min="1" step="0.01" x-model.number="gNew.total_funding" class="field num" required /></div>
+        <div class="sm:col-span-2"><label for="ng-cur" class="block text-sm text-zinc-300 mb-1.5">Currency</label><input id="ng-cur" x-model="gNew.currency" maxlength="3" class="field uppercase" required /></div>
+        <div class="sm:col-span-2"><label for="ng-s" class="block text-sm text-zinc-300 mb-1.5">Starts</label><input id="ng-s" type="date" x-model="gNew.start_date" class="field" required /></div>
+        <div class="sm:col-span-2"><label for="ng-e" class="block text-sm text-zinc-300 mb-1.5">Ends</label><input id="ng-e" type="date" x-model="gNew.end_date" class="field" required /></div>
+        <div class="sm:col-span-2"><label for="ng-h" class="block text-sm text-zinc-300 mb-1.5">Home country</label><input id="ng-h" x-model="gNew.home_country" maxlength="2" class="field uppercase" /></div>
       </div>
+      <div class="space-y-2 text-sm text-zinc-300">
+        <label class="flex items-start gap-2"><input type="checkbox" x-model="gNew.add_total_cap" class="mt-1 accent-emerald-400" /><span>Stop spending above the total award<span class="block text-xs text-zinc-500">Adds a limit equal to the award amount.</span></span></label>
+        <label class="flex items-start gap-2"><input type="checkbox" x-model="gNew.add_period_rule" class="mt-1 accent-emerald-400" /><span>Only allow costs between the start and end dates</span></label>
+      </div>
+      <p x-show="newError" class="text-sm text-rose-300 bg-rose-500/10 rounded-lg px-3 py-2" x-text="newError"></p>
+      <div class="flex justify-end gap-2"><button type="button" @click="newOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="submit" :disabled="busy === 'grant'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'grant' ? 'Creating…' : 'Create grant'"></button></div>
+    </form>
+  </div>
+
+  <!-- Edit expense -->
+  <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="editOpen = false" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+    <form class="card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="saveEdit(false)">
+      <h3 id="edit-title" class="text-white font-semibold">Edit expense</h3>
+      <p class="text-sm text-zinc-400">Fix a wrong amount, date or vendor. The change is checked against the grant rules and kept in history.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label for="e-amt" class="block text-sm text-zinc-300 mb-1.5">Amount</label><div class="flex gap-2"><input id="e-amt" type="number" min="0.01" step="0.01" x-model.number="ed.amount" class="field num flex-1 min-w-0" required /><select x-model="ed.currency" class="field num !w-24 shrink-0" aria-label="Currency"><template x-for="c in currencyCodes()" :key="c"><option :value="c" :selected="c === ed.currency" x-text="c"></option></template></select></div></div>
+        <div><label for="e-date" class="block text-sm text-zinc-300 mb-1.5">Date</label><input id="e-date" type="date" x-model="ed.expense_date" class="field" required /></div>
+        <div><label for="e-vendor" class="block text-sm text-zinc-300 mb-1.5">Paid to</label><input id="e-vendor" x-model="ed.vendor" class="field" required /></div>
+        <div><label for="e-loc" class="block text-sm text-zinc-300 mb-1.5">Location</label><input id="e-loc" x-model="ed.location" class="field" /></div>
+        <div><label for="e-who" class="block text-sm text-zinc-300 mb-1.5">Who spent it</label><select id="e-who" x-model="ed.spender_id" class="field"><template x-for="t in state.team_members" :key="t.id"><option :value="t.id" :selected="t.id === ed.spender_id" x-text="t.name"></option></template></select></div>
+        <div><label for="e-cat" class="block text-sm text-zinc-300 mb-1.5">Category</label><input id="e-cat" x-model="ed.category" list="category-list" class="field" required /></div>
+      </div>
+      <div x-show="ed.currency && ed.currency !== grantCurrency()"><label for="e-rate" class="block text-sm text-zinc-300 mb-1.5" x-text="`Your rate: 1 ${ed.currency} in ${grantCurrency()}`"></label><input id="e-rate" type="number" min="0" step="any" x-model.number="ed.fx_rate" class="field num" /><p class="mt-1 text-xs text-zinc-500">Leave empty to use the official rate for the expense date.</p></div>
+      <div><label for="e-note" class="block text-sm text-zinc-300 mb-1.5">Note</label><textarea id="e-note" x-model="ed.content" rows="2" class="field resize-none"></textarea></div>
+      <div><label for="e-reason" class="block text-sm text-zinc-300 mb-1.5">Why are you changing it?</label><input id="e-reason" x-model="ed.reason" class="field" required /></div>
+      <template x-if="editConflict">
+        <div class="rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-sm space-y-1.5">
+          <div class="text-rose-200 font-medium">This change would break a rule</div>
+          <template x-for="f in editConflict.findings.filter(f => f.severity === 'blocking')" :key="f.rule_id + f.code"><p class="text-rose-100/90 text-xs" x-text="f.message"></p></template>
+          <p class="text-xs text-zinc-400">If the ledger must reflect what actually happened, save anyway. It'll show as over the limit.</p>
+        </div>
+      </template>
+      <template x-if="editTarget && editTarget.edits && editTarget.edits.length">
+        <details class="text-xs text-zinc-500"><summary class="cursor-pointer">Changed <span x-text="editTarget.edits.length"></span> time(s) before</summary>
+          <ul class="mt-2 space-y-1"><template x-for="(e, i) in editTarget.edits.slice().reverse()" :key="i"><li x-text="`${niceDateTime(e.at)} · ${e.by || 'unknown'}: ${e.reason} (${Object.keys(e.changes).join(', ')})`"></li></template></ul></details>
+      </template>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button>
+        <button type="button" x-show="editConflict" @click="saveEdit(true)" :disabled="busy === 'edit'" class="px-4 py-2 text-sm rounded-lg bg-rose-500 text-white hover:bg-rose-400">Save anyway</button>
+        <button type="submit" x-show="!editConflict" :disabled="busy === 'edit'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'edit' ? 'Checking…' : 'Save changes'"></button>
+      </div>
+    </form>
+  </div>
+
+  <div x-show="delTarget" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="delTarget = null" role="dialog" aria-modal="true" aria-labelledby="del-title">
+    <div class="card p-5 w-full max-w-md">
+      <h3 id="del-title" class="text-white font-semibold">Remove this expense?</h3>
+      <p class="text-sm text-zinc-400 mt-1" x-text="delTarget ? `${delTarget.vendor} · ${money(delTarget.amount)} on ${niceDate(delTarget.timestamp)}. It stops counting toward limits and is forgotten in Hindsight. A record of the removal stays in history.` : ''"></p>
+      <label for="del-reason" class="block text-sm text-zinc-300 mt-4 mb-1.5">Reason</label>
+      <input id="del-reason" x-model="delReason" class="field" />
+      <div class="flex justify-end gap-2 mt-5"><button type="button" @click="delTarget = null" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="button" @click="doDelete()" class="px-4 py-2 text-sm rounded-lg bg-rose-500 text-white hover:bg-rose-400">Remove</button></div>
     </div>
   </div>
 
-  <!-- JAVASCRIPT / ALPINE LOGIC -->
-  <script>
-    function grantTerminal() {
-      return {
-        state: {
-          active_grant_id: '',
-          grants: {},
-          team_members: [],
-          memories: [],
-        },
-        activeGrantId: '',
-        currentGrant: {
-          name: '',
-          total_funding: 0,
-          currency: 'USD',
-          rules: [],
-        },
-        form: {
-          spender_id: '',
-          vendor: '',
-          location: '',
-          amount: null,
-          purpose: '',
-          mode: 'with_memory',
-          category: '',
-          expense_date: '',
-          prior_approval_ref: '',
-        },
-        auditResult: null,
-        compareResult: null,
-        error: '',
-        loading: false,
-        lastAuditTime: '',
-        showWaiver: false,
-        waiverText: '',
+  <div x-show="draft" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="draft = ''" role="dialog" aria-modal="true" aria-labelledby="draft-title">
+    <div class="card p-5 w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <h3 id="draft-title" class="text-white font-semibold">Approval request (draft)</h3>
+      <p class="text-sm text-zinc-400">Edit before sending to your program officer.</p>
+      <textarea x-model="draft" class="field mt-3 flex-1 min-h-[18rem] font-mono text-xs leading-relaxed" aria-label="Draft text"></textarea>
+      <div class="flex justify-end gap-2 mt-4"><button type="button" @click="draft = ''" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Close</button><button type="button" @click="copyDraft()" class="px-4 py-2 text-sm rounded-lg bg-zinc-100 text-zinc-900">Copy text</button></div>
+    </div>
+  </div>
 
-        async initTerminal() {
-          await this.loadState();
-        },
+  <div class="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] max-w-sm" aria-live="polite">
+    <template x-for="t in toasts" :key="t.id"><div class="card px-4 py-3 text-sm shadow-xl fade-in" :class="t.kind === 'error' ? 'border-rose-500/40 text-rose-200' : 'border-emerald-500/30 text-zinc-200'" x-text="t.text"></div></template>
+  </div>
 
-        async loadState() {
-          try {
-            const res = await fetch('/api/state');
-            if (res.ok) {
-              this.state = await res.json();
-              this.activeGrantId = this.state.active_grant_id || Object.keys(this.state.grants || {})[0] || '';
-              this.updateCurrentGrant();
-              const ids = (this.state.team_members || []).map(t => t.id);
-              if (ids.length > 0 && !ids.includes(this.form.spender_id)) {
-                this.form.spender_id = this.state.team_members[0].id;
-              }
-            }
-          } catch (e) {
-            console.error('Failed to load state:', e);
-          }
-        },
+  <datalist id="category-list"><template x-for="c in categoryOptions()" :key="c"><option :value="c"></option></template></datalist>
 
-        updateCurrentGrant() {
-          if (this.state.grants && this.state.grants[this.activeGrantId]) {
-            this.currentGrant = this.state.grants[this.activeGrantId];
-          }
-        },
+<script>
+const PALETTE = ['#34d399', '#60a5fa', '#a78bfa', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#a3e635', '#e879f9', '#94a3b8'];
 
-        async switchGrant() {
-          try {
-            const res = await fetch('/api/switch-grant', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ grant_id: this.activeGrantId }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              this.state = data.state;
-              this.updateCurrentGrant();
-              this.auditResult = null;
-              this.compareResult = null;
-            }
-          } catch (e) {
-            console.error('Failed to switch grant:', e);
-          }
-        },
+function app() {
+  return {
+    booting: true, tab: 'overview', menu: false, showStatus: false, busy: '',
+    user: { name: '' }, state: { grants: {}, team_members: [], memories: [] }, grantId: '',
+    dash: {}, health: {}, preview: null, previewing: false, second: null,
+    form: { spender_id: '', vendor: '', location: '', amount: null, purpose: '', category: '', expense_date: '', prior_approval_ref: '', currency: '', useOwnRate: false, fx_rate: null },
+    ledger: { items: [], total: 0 }, ledgerQ: '', ledgerCat: '',
+    memQ: '', memRes: null, history: [], histFilter: '',
+    currencies: {}, gEdit: {}, gNew: {}, newOpen: false, newError: '', ruleOpen: false, ruleError: '', rd: {}, newClause: '',
+    importOpen: false, importText: '', importRes: null, importPick: [], importFile: '', dragging: false,
+    editOpen: false, editTarget: null, ed: {}, editConflict: null, memberEdit: {},
+    ruleKinds: ['category_cap', 'spender_cap', 'vendor_cap', 'jurisdiction', 'prior_approval', 'blocked_list', 'allowed_categories', 'grant_period'],
+    newMember: { name: '', role: '' }, delTarget: null, delReason: '', draft: '', toasts: [], _seq: 0, _cats: [], _std: [], _pv: 0,
+    tabs: [],
 
-        async resetData() {
-          if (!confirm('Reset local compliance memory store to default seed baseline?')) return;
-          try {
-            const res = await fetch('/api/reset-seed', { method: 'POST' });
-            if (res.ok) {
-              const data = await res.json();
-              this.state = data.state;
-              this.activeGrantId = this.state.active_grant_id;
-              this.updateCurrentGrant();
-              this.auditResult = null;
-            }
-          } catch (e) {
-            console.error('Failed to reset seed:', e);
-          }
-        },
+    async init() {
+      this.tabs = [
+        { id: 'overview', label: 'Overview' },
+        { id: 'ledger', label: 'Ledger', count: () => this.dash.entries },
+        { id: 'memory', label: 'Ask memory' },
+        { id: 'history', label: 'History', count: () => this.history.length },
+        { id: 'setup', label: 'Grant setup', count: () => (this.currentGrant().policies || []).length },
+        { id: 'team', label: 'Team', count: () => this.state.team_members.length },
+      ];
+      try {
+        this.user = (await this.api('/api/auth/me')).user;
+        await this.loadState();
+        await this.refresh();
+        this.api('/api/health').then(h => this.health = h).catch(() => {});
+        this.api('/api/fx/currencies').then(r => this.currencies = r.currencies).catch(() => {});
+        this.api('/api/categories').then(r => { this._std = r.categories; this._cats = this.mergeCats(Object.keys(this.dash.by_category || {})); }).catch(() => {});
+      } catch (e) { this.toast(e.message, 'error'); }
+      this.booting = false;
+      let timer;
+      this.$watch('ed', () => { this.editConflict = null; });
+      this.$watch('form', () => { clearTimeout(timer); this.second = null; timer = setTimeout(() => this.runPreview(), 350); });
+    },
 
-        totalSpent() {
-          if (!this.state.memories) return 0;
-          return this.state.memories
-            .filter(m => m.grant_id === this.activeGrantId)
-            .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
-        },
+    async api(url, opts = {}) {
+      const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      if (res.status === 401) { window.location.href = '/login'; throw new Error('Signed out'); }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const d = data.detail;
+        const err = new Error(Array.isArray(d) ? d.map(x => `${(x.loc || []).slice(-1)[0]}: ${x.msg}`).join('; ') : (d || `Request failed (${res.status})`));
+        err.status = res.status; err.data = data; throw err;
+      }
+      return data;
+    },
+    toast(text, kind = 'ok') { const id = ++this._seq; this.toasts.push({ id, text, kind }); setTimeout(() => this.toasts = this.toasts.filter(t => t.id !== id), 5000); },
 
-        filteredMemories() {
-          if (!this.state.memories) return [];
-          return this.state.memories.filter(m => m.grant_id === this.activeGrantId);
-        },
+    async loadState() {
+      this.state = await this.api('/api/state');
+      if (!this.grantId || !this.state.grants[this.grantId]) this.grantId = this.state.active_grant_id || Object.keys(this.state.grants)[0] || '';
+      const ids = this.state.team_members.map(m => m.id);
+      if (!ids.includes(this.form.spender_id)) this.form.spender_id = ids[0] || '';
+      if (!this.form.currency) this.form.currency = this.grantCurrency();
+    },
+    async refresh() {
+      if (!this.grantId) return;
+      const [d, h] = await Promise.all([
+        this.api(`/api/grants/${encodeURIComponent(this.grantId)}/dashboard`),
+        this.api(`/api/audits?grant_id=${encodeURIComponent(this.grantId)}`),
+      ]);
+      this.dash = d; this.history = h.items; this.loadEdit();
+      this._cats = this.mergeCats(Object.keys(d.by_category || {}));
+      if (this.tab === 'ledger') this.loadLedger();
+    },
+    async switchGrant() {
+      try { await this.api('/api/switch-grant', { method: 'POST', body: JSON.stringify({ grant_id: this.grantId }) }); } catch (e) { this.toast(e.message, 'error'); }
+      this.preview = null; this.second = null; this.memRes = null; this.form.currency = this.grantCurrency();
+      await this.refresh(); this.runPreview();
+    },
+    openTab(id) { this.tab = id; if (id === 'ledger') this.loadLedger(); if (id === 'setup') this.loadEdit(); },
+    currentGrant() { return this.state.grants[this.grantId] || {}; },
 
-        formatCurrency(num, curr) {
-          if (num === undefined || num === null) return '$0';
-          const sym = curr === 'EUR' ? '€' : '$';
-          return sym + Number(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        },
+    formReady() { return !!(this.form.spender_id && this.form.vendor.trim() && Number(this.form.amount) > 0 && this.form.purpose.trim()); },
+    payload(extra = {}) {
+      const f = this.form;
+      const p = { grant_id: this.grantId, spender_id: f.spender_id, vendor: f.vendor.trim() || 'Unnamed vendor', location: f.location.trim(),
+        amount: Number(f.amount), purpose: f.purpose.trim() || f.vendor.trim() || 'Not given', ...extra };
+      if (f.category) p.category = f.category;
+      if (f.expense_date) p.expense_date = f.expense_date;
+      if (f.prior_approval_ref.trim()) p.prior_approval_ref = f.prior_approval_ref.trim();
+      if (f.currency && f.currency !== this.grantCurrency()) {
+        p.currency = f.currency;
+        if (f.useOwnRate && Number(f.fx_rate) > 0) p.fx_rate = Number(f.fx_rate);
+      }
+      return p;
+    },
+    async runPreview() {
+      if (!(Number(this.form.amount) > 0) || !this.form.spender_id) { this.preview = null; return; }
+      const seq = ++this._pv;
+      this.previewing = true;
+      try { const r = await this.api('/api/expenses/preview', { method: 'POST', body: JSON.stringify(this.payload()) }); if (seq === this._pv) this.preview = r; }
+      catch (e) { if (seq === this._pv) { this.preview = null; if (e.status === 503) this.toast(e.message, 'error'); } }
+      finally { if (seq === this._pv) this.previewing = false; }
+    },
+    v() { return this.preview.with_memory; },
+    canRecord() { return !!this.preview && this.formReady() && this.v().status !== 'CLAWBACK_RISK_DETECTED'; },
+    recordLabel() {
+      if (this.busy === 'record') return 'Recording…';
+      if (this.canRecord()) return 'Record this expense';
+      return this.formReady() ? "Can't record until the issues are fixed" : 'Fill in vendor and purpose to record';
+    },
+    async record() {
+      if (!this.canRecord()) return;
+      this.busy = 'record';
+      try {
+        const r = await this.api('/api/audit-expense', { method: 'POST', body: JSON.stringify(this.payload({ mode: 'with_memory', commit: true })) });
+        const ev = r.evaluation;
+        if (ev.committed) {
+          const where = ev.sync_status === 'synced' ? 'Saved to the ledger and to Hindsight memory.' : ev.sync_status === 'local_only' ? 'Saved to the ledger. Hindsight is not configured.' : 'Saved to the ledger. Hindsight sync will be retried.';
+          const paid = r.expense.fx ? `${this.money(r.expense.fx.original_amount, r.expense.fx.original_currency)} (${this.money(r.expense.amount)})` : this.money(r.expense.amount);
+          this.toast(`Recorded ${paid} to ${r.expense.vendor}. ${where}`);
+          Object.assign(this.form, { vendor: '', location: '', amount: null, purpose: '', category: '', prior_approval_ref: '', useOwnRate: false, fx_rate: null });
+          this.preview = null;
+        } else { this.toast('Not recorded: the check found a blocking issue.', 'error'); }
+        await this.loadState(); await this.refresh();
+      } catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
+    async secondOpinion() {
+      this.busy = 'second';
+      try { const r = await this.api('/api/expenses/audit/compare', { method: 'POST', body: JSON.stringify(this.payload()) }); this.second = r; this.refresh(); }
+      catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
 
-        formatDate(iso) {
-          if (!iso) return '';
-          try {
-            const d = new Date(iso);
-            return d.toISOString().split('T')[0];
-          } catch {
-            return iso;
-          }
-        },
+    async loadLedger() {
+      const q = new URLSearchParams({ grant_id: this.grantId, q: this.ledgerQ, category: this.ledgerCat, limit: '200' });
+      try { this.ledger = await this.api('/api/memories?' + q); } catch (e) { this.toast(e.message, 'error'); }
+    },
+    unsynced() { return this.state.memories.filter(m => m.grant_id === this.grantId && m.sync_status !== 'synced').length; },
+    async syncAll() {
+      this.busy = 'sync';
+      try {
+        const r = (await this.api(`/api/memories/sync?grant_id=${encodeURIComponent(this.grantId)}`, { method: 'POST' })).result;
+        if (r.local_only) this.toast('Hindsight is not configured on this server, so entries stay local.', 'error');
+        else this.toast(`Synced ${r.synced} to Hindsight.${r.failed ? ' ' + r.failed + ' failed, try again shortly.' : ''}`, r.failed ? 'error' : 'ok');
+        await this.loadState(); await this.refresh(); this.loadLedger();
+      } catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
+    async resync(m) {
+      try {
+        const r = await this.api(`/api/memories/${m.id}/resync`, { method: 'POST' });
+        const ok = r.memory.sync_status === 'synced';
+        this.toast(ok ? 'Synced to Hindsight.' : 'Still not synced: ' + (r.memory.sync_error || r.memory.sync_status), ok ? 'ok' : 'error');
+        await this.loadState(); this.loadLedger();
+      } catch (e) { this.toast(e.message, 'error'); }
+    },
+    askDelete(m) { this.delTarget = m; this.delReason = ''; },
+    async doDelete() {
+      const m = this.delTarget; this.delTarget = null;
+      try { await this.api(`/api/memories/${m.id}`, { method: 'DELETE', body: JSON.stringify({ reason: this.delReason.trim() || 'Correction' }) }); this.toast('Removed. Limits updated.'); await this.loadState(); await this.refresh(); this.loadLedger(); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
 
-        payload() {
-          const p = {
-            grant_id: this.activeGrantId,
-            spender_id: this.form.spender_id,
-            vendor: this.form.vendor,
-            location: this.form.location,
-            amount: Number(this.form.amount),
-            purpose: this.form.purpose,
-            mode: this.form.mode,
-          };
-          if (this.form.category) p.category = this.form.category;
-          if (this.form.expense_date) p.expense_date = this.form.expense_date;
-          if (this.form.prior_approval_ref) p.prior_approval_ref = this.form.prior_approval_ref;
-          return p;
-        },
+    suggestions() {
+      const top = Object.keys(this.dash.by_category || {}), vendors = this.vendorOptions(), out = [];
+      if (top[0]) out.push(`What have we spent on ${top[0].toLowerCase()}?`);
+      if (vendors[0]) out.push(`Payments to ${vendors[0]}`);
+      if (this.state.team_members[0]) out.push(`What did ${this.state.team_members[0].name} spend?`);
+      if (top[1]) out.push(`Recent ${top[1].toLowerCase()} costs`);
+      return out;
+    },
+    async ask() {
+      if (!this.memQ.trim()) return;
+      this.busy = 'ask';
+      try { this.memRes = await this.api(`/api/memory/recall?grant_id=${encodeURIComponent(this.grantId)}&q=${encodeURIComponent(this.memQ)}`); }
+      catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
 
-        validForm() {
-          if (!this.form.vendor || !this.form.amount || !this.form.purpose || !this.form.spender_id) {
-            this.error = 'Complete spender, vendor, amount and justification before auditing.';
-            return false;
-          }
-          return true;
-        },
+    async addMember() {
+      try { await this.api('/api/team-members', { method: 'POST', body: JSON.stringify(this.newMember) }); this.newMember = { name: '', role: '' }; await this.loadState(); this.toast('Added to the team.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    async removeMember(m) {
+      if (!confirm(`Remove ${m.name}? Their past expenses stay in the ledger.`)) return;
+      try { await this.api(`/api/team-members/${m.id}`, { method: 'DELETE' }); await this.loadState(); this.toast('Removed from the team.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    async logout() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/login'; },
 
-        async post(url) {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.payload()),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const d = data.detail;
-            throw new Error(Array.isArray(d) ? d.map(x => (x.loc || []).slice(-1)[0] + ': ' + x.msg).join('; ') : (d || ('HTTP ' + res.status)));
-          }
-          return data;
-        },
+    openDraft() {
+      const v = this.v(), g = this.currentGrant(), who = this.state.team_members.find(m => m.id === this.form.spender_id) || {};
+      this.draft = [
+        `Subject: Prior approval request, ${g.name} (${this.grantId})`, '', 'Dear Program Officer,', '',
+        `We request approval for the following cost under ${this.grantId}:`, '',
+        `  Payee:      ${this.form.vendor}`, `  Location:   ${this.form.location || 'not given'}`,
+        `  Amount:     ${this.money(this.form.amount)}`, `  Category:   ${v.category}`,
+        `  Requested:  ${who.name || ''}${who.role ? ', ' + who.role : ''}`, `  Purpose:    ${this.form.purpose}`, '',
+        'Our internal compliance check flagged these terms:',
+        ...v.findings.filter(f => f.severity === 'blocking').map(f => `  - ${f.message}`), '',
+        'Justification:', '  [Why this cost is necessary and why no compliant alternative exists.]', '',
+        'Thank you,', this.user.name || '',
+      ].join('\n');
+    },
+    async copyDraft() { try { await navigator.clipboard.writeText(this.draft); this.toast('Copied.'); } catch { this.toast('Copy failed. Select the text manually.', 'error'); } },
 
-        async runAudit() {
-          this.error = '';
-          if (!this.validForm()) return;
-          this.loading = true;
-          this.auditResult = null;
-          this.compareResult = null;
-          try {
-            const data = await this.post('/api/audit-expense');
-            this.auditResult = data.evaluation;
-            this.lastAuditTime = new Date().toLocaleTimeString();
-            await this.loadState();
-          } catch (e) {
-            this.error = 'Audit failed: ' + e.message;
-          } finally {
-            this.loading = false;
-          }
-        },
+    money(n, cur) {
+      if (n == null || isNaN(n)) return '–';
+      try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || this.dash.currency || this.currentGrant().currency || 'USD', maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 }).format(n); }
+      catch { return '$' + Math.round(n).toLocaleString(); }
+    },
+    pct(n) { return n == null ? '–' : `${Math.round(n)}%`; },
+    niceDate(s) { if (!s) return ''; const d = new Date(s.length <= 10 ? s + 'T12:00:00Z' : s); return isNaN(d) ? s : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); },
+    niceDateTime(s) { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); },
+    monthName(m) { return new Date(m + '-15T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); },
+    monthShort(m) { return new Date(m + '-15T12:00:00Z').toLocaleDateString('en-US', { month: 'short' }); },
+    initials(n) { return (n || '?').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase(); },
+    cap1(s) { return s ? s[0].toUpperCase() + s.slice(1) : ''; },
+    sumObj(o) { return Object.values(o || {}).reduce((a, b) => a + b, 0); },
+    maxMonth() { return Math.max(1, ...(this.dash.timeline || []).map(m => this.sumObj(m.by_category))); },
+    maxSpender() { return Math.max(1, ...Object.values(this.dash.by_spender || {})); },
+    catColor(c) { const i = this._cats.indexOf(c); return PALETTE[(i < 0 ? this._cats.length : i) % PALETTE.length]; },
+    policyCategories() { const s = new Set(); (this.currentGrant().policies || []).forEach(p => { if (p.category) s.add(p.category); (p.categories || []).forEach(c => s.add(c)); }); return [...s]; },
+    categoryOptions() { return this._cats; },
+    mergeCats(used) { return [...new Set([...used, ...this.policyCategories(), ...(this._std || [])])].sort(); },
+    vendorOptions() { return [...new Set(this.state.memories.filter(m => m.grant_id === this.grantId).map(m => m.vendor))].slice(0, 30); },
+    recent() { return this.state.memories.filter(m => m.grant_id === this.grantId).slice().reverse().slice(0, 5); },
+    donut() { const e = Object.entries(this.dash.by_category || {}); const t = e.reduce((a, [, v]) => a + v, 0) || 1; let off = 0; return e.map(([c, v]) => { const pct = v / t * 100; const s = { c, v, pct, offset: off }; off += pct; return s; }); },
+    donutGradient() { const d = this.donut(); if (!d.length) return '#27272a'; return 'conic-gradient(' + d.map(x => `${this.catColor(x.c)} ${x.offset}% ${x.offset + x.pct}%`).join(', ') + ')'; },
+    topLimits() { return (this.v().utilization || []).slice().sort((a, b) => b.pct_after - a.pct_after).slice(0, 3); },
+    seg(u) { const scale = Math.max(u.cap, u.projected); return { prior: u.prior / scale * 100, add: (u.projected - u.prior) / scale * 100, cap: u.cap / scale * 100 }; },
+    tone(s) {
+      if (s === 'CLAWBACK_RISK_DETECTED') return { title: "Don't spend this yet", short: 'like a problem', icon: '✕', text: 'text-rose-300', chip: 'bg-rose-500/15 text-rose-300' };
+      if (s === 'APPROVED_WITH_WARNINGS') return { title: 'Okay, but be careful', short: 'okay with caveats', icon: '!', text: 'text-amber-300', chip: 'bg-amber-500/15 text-amber-300' };
+      return { title: 'Good to go', short: 'fine', icon: '✓', text: 'text-emerald-300', chip: 'bg-emerald-500/15 text-emerald-300' };
+    },
+    headlineText() {
+      const v = this.v(), b = v.findings.filter(f => f.severity === 'blocking').length, w = v.findings.length - b;
+      if (b) return `${b} rule${b > 1 ? 's' : ''} would be broken. Recording is blocked until that's fixed.`;
+      if (w) return `Nothing is broken, but ${w} thing${w > 1 ? 's need' : ' needs'} attention.`;
+      return `Fits every rule on this grant. Filed under ${v.category}.`;
+    },
+    plain(f) { return f.message.replace(/^[^:]+:\s*/, ''); },
+    riskColor(n) { return n >= 70 ? 'text-rose-300' : n >= 30 ? 'text-amber-300' : 'text-emerald-300'; },
+    scoreColor(n) { return n >= 80 ? '#34d399' : n >= 50 ? '#fbbf24' : '#fb7185'; },
+    healthText() { const g = this.dash.guardrails || []; const o = g.filter(x => x.state === 'over').length, w = g.filter(x => x.state === 'warn').length; if (o) return `${o} limit already over`; if (w) return `${w} limit${w > 1 ? 's' : ''} getting close`; return 'All limits comfortable'; },
+    paceText() {
+      if (!this.dash.period) return '';
+      if (this.dash.pace === 'ahead') return 'Spending faster than time is passing. Watch the runway.';
+      if (this.dash.pace === 'behind') return 'Spending slower than the timeline. Money is safe; check milestones are on track.';
+      return 'Spending is on pace with the grant timeline.';
+    },
+    locHint() {
+      const j = this.preview?.with_memory?.jurisdiction;
+      if (!this.form.location.trim() || !j) return { text: '', cls: '' };
+      if (j.status === 'resolved') return { text: `Recognised as ${j.country}`, cls: 'text-zinc-500' };
+      if (j.status === 'ambiguous') return { text: `Could mean ${j.candidates.join(' or ')}. Add the country.`, cls: 'text-amber-300' };
+      return { text: "Didn't recognise the country. Try \"City, Country\".", cls: 'text-amber-300' };
+    },
+    syncBadge(s) {
+      if (s !== 'synced' && this.health.hindsight?.status === 'disabled') s = 'local_only';
+      return ({ synced: { label: 'In Hindsight', cls: 'bg-emerald-500/10 text-emerald-300' }, failed: { label: 'Sync failed', cls: 'bg-rose-500/10 text-rose-300' },
+        local_only: { label: 'Local only', cls: 'bg-zinc-800 text-zinc-400' } })[s] || { label: 'Waiting', cls: 'bg-amber-500/10 text-amber-300' };
+    },
+    memoryDot() { const h = this.health.hindsight; return !h ? 'bg-zinc-600' : h.status === 'ok' ? 'bg-emerald-400' : h.status === 'disabled' ? 'bg-zinc-500' : 'bg-rose-400'; },
+    memoryLabel() { const h = this.health.hindsight; if (!h) return 'Checking memory…'; if (h.status === 'ok') return `Hindsight connected · ${this.dash.sync?.synced || 0}/${this.dash.entries || 0} synced`; if (h.status === 'disabled') return 'Memory: local only'; return 'Hindsight unreachable'; },
+    hindsightText() { const h = this.health.hindsight; if (!h) return '…'; if (h.status === 'ok') return `Connected · bank ${h.bank}`; if (h.status === 'disabled') return 'Not configured (no API key)'; return 'Unreachable. Entries are queued.'; },
+    syncSummary() { const s = this.dash.sync || {}; return `${s.synced || 0} synced · ${(s.pending || 0) + (s.failed || 0)} waiting · ${s.local_only || 0} local only`; },
+    ruleKind(t) { return { category_cap: 'Spending cap', spender_cap: 'Per-person cap', vendor_cap: 'Per-vendor cap', jurisdiction: 'Location', prior_approval: 'Needs approval', blocked_list: 'Not allowed', allowed_categories: 'Allowed categories', grant_period: 'Dates' }[t] || t; },
+    windowText(w) { if (!w) return 'over the whole grant'; if (w.kind === 'rolling') return `in any ${w.days}-day period`; return `per fiscal ${w.period}`; },
+    ruleText(p) {
+      const m = n => this.money(n);
+      switch (p.type) {
+        case 'category_cap': return `${p.category || 'Total spending'}: up to ${m(p.cap)} ${this.windowText(p.window)}. Warns at ${p.warn_at_pct ?? 80}%.`;
+        case 'spender_cap': return `${p.spender || 'Each person'}: up to ${m(p.cap)}${p.category ? ' on ' + p.category : ''} ${this.windowText(p.window)}.`;
+        case 'vendor_cap': return `${p.vendor || 'Any single vendor'}: up to ${m(p.cap)} ${this.windowText(p.window)}.`;
+        case 'jurisdiction': return `${(p.categories || ['All spending']).join(', ')}: ${p.allowed_countries ? 'only vendors in ' + p.allowed_countries.join(', ') : 'no vendors in ' + p.blocked_countries.join(', ')}${p.waivable_with_prior_approval ? ', unless the funder approved it in writing' : ''}.`;
+        case 'prior_approval': return `${(p.categories || ['Any spend']).join(', ')} over ${m(p.threshold)} needs written approval first.`;
+        case 'blocked_list': return `Never allowed: ${[...(p.categories || []), ...(p.vendors || [])].join(', ')}.`;
+        case 'allowed_categories': return `Only these categories are allowed: ${p.categories.join(', ')}.`;
+        case 'grant_period': return `Costs must fall between ${this.niceDate(p.start)} and ${this.niceDate(p.end)}.`;
+      }
+      return p.description || '';
+    },
+    hasGrants() { return Object.keys(this.state.grants || {}).length > 0; },
+    grantCurrency() { return (this.currentGrant().currency || 'USD').toUpperCase(); },
+    currencyCodes() { const set = new Set([this.grantCurrency(), ...Object.keys(this.currencies)]); return [...set].sort((a, b) => a === this.grantCurrency() ? -1 : b === this.grantCurrency() ? 1 : a.localeCompare(b)); },
+    fxInfo() { return this.preview?.with_memory?.fx; },
+    fxLine() {
+      const f = this.fxInfo();
+      if (!f) return this.previewing ? 'Getting the exchange rate…' : 'Enter an amount to see it in ' + this.grantCurrency();
+      const src = { ecb: 'European Central Bank', cached: 'last saved rate (offline)', manual: 'your rate' }[f.fx_source] || f.fx_source;
+      return `1 ${f.original_currency} = ${f.fx_rate} ${f.grant_currency} · ${src}, ${this.niceDate(f.fx_rate_date)}`;
+    },
+    fxConverted() { const f = this.fxInfo(); return f ? '= ' + this.money(f.converted_amount) : ''; },
 
-        async runCompare() {
-          this.error = '';
-          if (!this.validForm()) return;
-          this.loading = true;
-          this.auditResult = null;
-          this.compareResult = null;
-          try {
-            this.compareResult = await this.post('/api/expenses/audit/compare');
-            this.lastAuditTime = new Date().toLocaleTimeString();
-          } catch (e) {
-            this.error = 'Compare failed: ' + e.message;
-          } finally {
-            this.loading = false;
-          }
-        },
+    // ---------- uploads & edits ----------
+    async uploadFile(file, forNew) {
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { this.toast('File is larger than 10 MB.', 'error'); return; }
+      this.busy = 'import'; this.importFile = '';
+      try {
+        const r = await this.api(`/api/grants/extract-file?filename=${encodeURIComponent(file.name)}`, { method: 'POST', body: file, headers: { 'Content-Type': 'application/octet-stream' } });
+        r.forNew = forNew; this.importRes = r; this.importPick = r.policies.map(() => true); this.importText = r.text || '';
+        this.importFile = `Read ${file.name}${r.file.pages ? ' · ' + r.file.pages + (r.file.pages === 1 ? ' page' : ' pages') : ''} · ${r.policies.length} rules found${r.truncated ? ' · long file, only the first part was read' : ''}`;
+        if (forNew) this.fillDetails(r.grant, this.gNew);
+        if (!r.policies.length) this.toast('No automatic rules found. Clauses were kept as text.', 'error');
+      } catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
+    lastEdit(m) { const e = (m.edits || []).slice(-1)[0]; return e ? `Last edited ${this.niceDate(e.at)} by ${e.by || 'unknown'}: ${e.reason}` : ''; },
+    openEdit(m) {
+      this.editTarget = m; this.editConflict = null;
+      this.ed = { amount: m.fx ? m.fx.original_amount : m.amount, currency: m.fx ? m.fx.original_currency : this.grantCurrency(),
+        fx_rate: m.fx && m.fx.fx_source === 'manual' ? m.fx.fx_rate : null, expense_date: (m.timestamp || '').slice(0, 10), vendor: m.vendor, location: m.location || '',
+        spender_id: m.spender_id || (this.state.team_members.find(t => t.name === m.spender) || {}).id || '', category: m.category, content: m.content || '', reason: '' };
+      this.editOpen = true;
+    },
+    async saveEdit(confirm) {
+      this.busy = 'edit';
+      const body = { ...this.ed, confirm };
+      if (!body.spender_id) delete body.spender_id;
+      if (!(Number(body.fx_rate) > 0) || body.currency === this.grantCurrency()) delete body.fx_rate;
+      try {
+        const r = await this.api(`/api/memories/${this.editTarget.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        this.editOpen = false;
+        const st = r.evaluation ? r.evaluation.status : null;
+        this.toast(!r.changed.length ? 'Nothing changed.' : st === 'CLAWBACK_RISK_DETECTED' ? 'Saved. This entry is now over a limit.' : st === 'APPROVED_WITH_WARNINGS' ? 'Saved. Heads up: a limit is getting close.' : 'Saved. Limits updated.', st === 'CLAWBACK_RISK_DETECTED' ? 'error' : 'ok');
+        await this.loadState(); await this.refresh(); this.loadLedger();
+      } catch (e) {
+        if (e.status === 409 && e.data && e.data.evaluation) this.editConflict = e.data.evaluation;
+        else this.toast(e.message, 'error');
+      }
+      this.busy = '';
+    },
+    async saveMember() {
+      const { id, ...body } = this.memberEdit;
+      try { await this.api(`/api/team-members/${id}`, { method: 'PATCH', body: JSON.stringify(body) }); this.memberEdit = {}; await this.loadState(); await this.refresh(); this.toast('Saved.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
 
-        categoryOptions() {
-          const set = new Set();
-          (this.currentGrant.policies || []).forEach(p => {
-            if (p.category) set.add(p.category);
-            (p.categories || []).forEach(c => set.add(c));
-          });
-          this.filteredMemories().forEach(m => m.category && set.add(m.category));
-          return [...set].sort();
-        },
+    // ---------- grant setup ----------
+    loadEdit() { const g = this.currentGrant(); this.gEdit = { name: g.name, total_funding: g.total_funding, currency: g.currency, start_date: g.start_date, end_date: g.end_date, home_country: g.home_country || '' }; },
+    async patchGrant(body, okMsg) {
+      const r = await this.api(`/api/grants/${encodeURIComponent(this.grantId)}`, { method: 'PATCH', body: JSON.stringify(body) });
+      this.state.grants[this.grantId] = r.grant;
+      await this.refresh(); this.runPreview();
+      if (okMsg) this.toast(okMsg);
+      return r.grant;
+    },
+    async saveDetails() {
+      this.busy = 'grant';
+      const b = { ...this.gEdit }; if (!b.home_country) delete b.home_country;
+      try { await this.patchGrant(b, 'Grant details saved.'); } catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
+    async archiveGrant() {
+      if (!confirm(`Archive "${this.currentGrant().name}"? Its ledger and history are kept.`)) return;
+      try { await this.api(`/api/grants/${encodeURIComponent(this.grantId)}`, { method: 'DELETE' }); this.grantId = ''; await this.loadState(); await this.refresh(); this.toast('Grant archived.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    openNewGrant() {
+      const y = new Date().getFullYear();
+      this.gNew = { name: '', total_funding: null, currency: this.currentGrant().currency || 'USD', start_date: `${y}-01-01`, end_date: `${y + 1}-12-31`, home_country: this.currentGrant().home_country || 'US', add_total_cap: true, add_period_rule: true };
+      this.newError = ''; this.importText = ''; this.importRes = null; this.newOpen = true;
+    },
+    async createGrant() {
+      this.busy = 'grant'; this.newError = '';
+      const body = { ...this.gNew, home_country: (this.gNew.home_country || 'US') };
+      if (this.importRes && this.importRes.forNew) { body.policies = this.importRes.policies; body.rules = [...this.importRes.policies.map(p => p.description).filter(Boolean), ...this.importRes.text_only]; }
+      try {
+        const r = await this.api('/api/grants', { method: 'POST', body: JSON.stringify(body) });
+        this.newOpen = false; this.importRes = null; this.grantId = r.id;
+        await this.loadState(); await this.refresh(); this.tab = 'setup'; this.loadEdit();
+        this.toast(`Created ${r.grant.name}.`);
+      } catch (e) { this.newError = e.message; }
+      this.busy = '';
+    },
+    fillDetails(g, target) { for (const k of ['name', 'total_funding', 'currency', 'start_date', 'end_date', 'home_country']) if (g[k]) target[k] = g[k]; },
+    async runImport(forNew) {
+      this.busy = 'import';
+      try {
+        const r = await this.api('/api/grants/extract', { method: 'POST', body: JSON.stringify({ text: this.importText }) });
+        r.forNew = forNew; this.importRes = r; this.importPick = r.policies.map(() => true);
+        if (forNew) this.fillDetails(r.grant, this.gNew);
+        if (!r.policies.length) this.toast('No automatic rules found. Clauses were kept as text.', 'error');
+      } catch (e) { this.toast(e.message, 'error'); }
+      this.busy = '';
+    },
+    async applyImport() {
+      const g = this.currentGrant(), picked = this.importRes.policies.filter((_, i) => this.importPick[i]);
+      const ids = new Set((g.policies || []).map(p => p.id));
+      const add = picked.map(p => ids.has(p.id) ? { ...p, id: p.id + '-' + Math.random().toString(36).slice(2, 5) } : p);
+      const rules = [...new Set([...(g.rules || []), ...add.map(p => p.description).filter(Boolean), ...this.importRes.text_only])];
+      try { await this.patchGrant({ policies: [...(g.policies || []), ...add], rules }, `Added ${add.length} rules.`); this.importRes = null; this.importText = ''; this.importOpen = false; }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    list(s) { return (s || '').split(',').map(x => x.trim()).filter(Boolean); },
+    openRule(p) {
+      const w = p?.window;
+      this.rd = { _editing: p ? p.id : null, type: p?.type || 'category_cap', clause: p?.clause || '', description: p?.description || '',
+        cap: p?.cap ?? null, category: p?.category || '', spender: p?.spender || '', vendor: p?.vendor || '',
+        windowKind: w ? w.kind : 'none', days: w?.days || 90, period: w?.period || 'quarter', start_month: w?.start_month || 1, warn_at_pct: p?.warn_at_pct ?? 80,
+        jMode: p?.blocked_countries ? 'block' : 'allow', countries: (p?.allowed_countries || p?.blocked_countries || []).join(', '),
+        categories: (p?.categories || []).join(', '), vendors: (p?.vendors || []).join(', '), waivable: p ? !!p.waivable_with_prior_approval : true,
+        threshold: p?.threshold ?? null, start: p?.start || this.currentGrant().start_date, end: p?.end || this.currentGrant().end_date,
+        warningOnly: p?.severity === 'warning' };
+      this.ruleError = ''; this.ruleOpen = true;
+    },
+    buildRule() {
+      const d = this.rd, t = d.type;
+      const r = { id: d._editing || `${t.replace('_', '-')}-${Math.random().toString(36).slice(2, 7)}`, type: t, clause: d.clause.trim(), description: d.description.trim() };
+      if (d.warningOnly) r.severity = 'warning';
+      if (['category_cap', 'spender_cap', 'vendor_cap'].includes(t)) {
+        Object.assign(r, { cap: Number(d.cap), warn_at_pct: Number(d.warn_at_pct), category: d.category.trim() || null });
+        if (d.windowKind === 'rolling') r.window = { kind: 'rolling', days: Number(d.days) };
+        if (d.windowKind === 'fiscal') r.window = { kind: 'fiscal', period: d.period, start_month: Number(d.start_month) };
+        if (t === 'spender_cap') r.spender = d.spender || null;
+        if (t === 'vendor_cap') r.vendor = d.vendor.trim() || null;
+      } else if (t === 'jurisdiction') {
+        r[d.jMode === 'allow' ? 'allowed_countries' : 'blocked_countries'] = this.list(d.countries).map(c => c.toUpperCase());
+        r.categories = this.list(d.categories).length ? this.list(d.categories) : null;
+        r.waivable_with_prior_approval = !!d.waivable;
+      } else if (t === 'prior_approval') { r.threshold = Number(d.threshold); r.categories = this.list(d.categories).length ? this.list(d.categories) : null; }
+      else if (t === 'blocked_list') { r.categories = this.list(d.categories); r.vendors = this.list(d.vendors); }
+      else if (t === 'allowed_categories') { r.categories = this.list(d.categories); }
+      else if (t === 'grant_period') { r.start = d.start; r.end = d.end; }
+      return r;
+    },
+    async saveRule() {
+      this.busy = 'rule'; this.ruleError = '';
+      const rule = this.buildRule(), g = this.currentGrant();
+      const policies = this.rd._editing ? (g.policies || []).map(p => p.id === this.rd._editing ? rule : p) : [...(g.policies || []), rule];
+      try { await this.patchGrant({ policies }, this.rd._editing ? 'Rule updated.' : 'Rule added.'); this.ruleOpen = false; }
+      catch (e) { this.ruleError = e.message.replace(/^Invalid rule: /, ''); }
+      this.busy = '';
+    },
+    async removeRule(p) {
+      if (!confirm(`Delete this rule?\n\n${this.ruleText(p)}`)) return;
+      try { await this.patchGrant({ policies: (this.currentGrant().policies || []).filter(x => x.id !== p.id) }, 'Rule deleted.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    async addClause() {
+      const t = this.newClause.trim(); if (!t) return;
+      try { await this.patchGrant({ rules: [...(this.currentGrant().rules || []), t] }, 'Clause added.'); this.newClause = ''; }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
+    async removeClause(t) {
+      try { await this.patchGrant({ rules: (this.currentGrant().rules || []).filter(r => r !== t) }, 'Clause deleted.'); }
+      catch (e) { this.toast(e.message, 'error'); }
+    },
 
-        blocking(r) { return (r.findings || []).filter(f => f.severity === 'blocking'); },
-        warnings(r) { return (r.findings || []).filter(f => f.severity === 'warning'); },
-        money(v) { return '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }); },
-        statusLabel(s) {
-          return { APPROVED: 'APPROVED', APPROVED_WITH_WARNINGS: 'APPROVED WITH WARNINGS', CLAWBACK_RISK_DETECTED: 'CLAWBACK RISK DETECTED' }[s] || s;
-        },
-        statusBox(s) {
-          if (s === 'CLAWBACK_RISK_DETECTED') return 'bg-red-950/50 border-red-600';
-          if (s === 'APPROVED_WITH_WARNINGS') return 'bg-amber-950/40 border-amber-600';
-          return 'bg-emerald-950/40 border-emerald-600';
-        },
-        statusText(s) {
-          if (s === 'CLAWBACK_RISK_DETECTED') return 'text-red-400';
-          if (s === 'APPROVED_WITH_WARNINGS') return 'text-amber-400';
-          return 'text-emerald-400';
-        },
-        riskText(n) { return n >= 70 ? 'text-red-400' : n >= 30 ? 'text-amber-400' : 'text-emerald-400'; },
-        barColor(u) { return u.pct_after > 100 ? 'bg-red-500' : u.pct_after >= u.warn_at_pct ? 'bg-amber-400' : 'bg-emerald-500'; },
-
-        openWaiverModal() {
-          const today = new Date().toISOString().split('T')[0];
-          const spenderObj = (this.state.team_members || []).find(t => t.id === this.form.spender_id) || { name: 'Team Member', role: 'Staff' };
-
-          this.waiverText = [
-            'AGENCY PRIOR-APPROVAL WAIVER REQUEST',
-            '======================================================================',
-            `DATE: ${today}`,
-            `AWARD ID: ${this.activeGrantId} - ${this.currentGrant.name}`,
-            '======================================================================',
-            '',
-            'SECTION 1: ENGAGEMENT DETAILS',
-            `Primary Contractor/Vendor : ${this.form.vendor}`,
-            `Jurisdiction / Location    : ${this.form.location}`,
-            `Proposed Amount           : ${Number(this.form.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${this.currentGrant.currency || ''}`,
-            `Requesting Team Member    : ${spenderObj.name} (${spenderObj.role})`,
-            '',
-            'SECTION 2: COMPLIANCE BREACH CONTEXT',
-            'Intercepted by GrantAnchor Autonomous Compliance Engine:',
-            ...(this.auditResult && this.auditResult.violations ? this.auditResult.violations.map(v => '  * ' + v) : ['  * (no violations recorded)']),
-            '',
-            'SECTION 3: TECHNICAL & SOLE-SOURCE JUSTIFICATION',
-            `Justification: ${this.form.purpose}`,
-            'The technical expertise and specialized deliverables required for Milestone',
-            'completion cannot be procured domestically within identical performance',
-            'and latency parameters.',
-            '',
-            'SECTION 4: REMEDIATION & CERTIFICATION',
-            this.auditResult && this.auditResult.remediation ? this.auditResult.remediation : 'Standard prior-approval submission.',
-            '',
-            'Principal Investigator Signature : _____________________________________',
-            'Granting Agency Program Officer : _____________________________________',
-            'Approval Status                : PENDING AGENCY REVIEW',
-            '',
-            'Generated automatically by GrantAnchor Hindsight Memory Engine',
-          ].join('\n');
-
-          this.showWaiver = true;
-        },
-
-        downloadWaiverFile() {
-          const blob = new Blob([this.waiverText], { type: 'text/plain;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `WAIVER_${this.activeGrantId}_${this.form.vendor.replace(/\s+/g, '_')}.txt`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-      };
-    }
-  </script>
+    fmtVal(k, v) { if (v == null || v === '') return '(blank)'; if (k === 'amount') return this.money(v); if (k === 'timestamp') return this.niceDate(v); return String(v); },
+    textOnlyRules() { const g = this.currentGrant(); const d = new Set((g.policies || []).map(p => p.description)); return (g.rules || []).filter(r => !d.has(r)); },
+    historyTitle(h) {
+      if (h.kind === 'delete') return `Removed ${h.vendor} from the ledger`;
+      if (h.kind === 'edit') return `Edited ${h.vendor}: ${Object.keys(h.changes || {}).filter(k => k !== 'fx').map(k => k === 'timestamp' ? 'date' : k).join(', ')}`;
+      if (h.kind === 'grant') return `${h.vendor}: ${h.reason}`;
+      return `${h.spender || 'Someone'} → ${h.vendor} · ${this.tone(h.status).title}`;
+    },
+    historySub(h) {
+      const bits = [this.niceDateTime(h.created_at), 'by ' + (h.by || 'unknown')];
+      if (h.kind === 'compare') bits.push(`second opinion · without memory: ${this.tone(h.without_memory_status).title.toLowerCase()}`);
+      if (h.committed) bits.push('recorded');
+      return bits.join(' · ');
+    },
+  };
+}
+</script>
 </body>
 </html>

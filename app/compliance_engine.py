@@ -13,7 +13,13 @@ from typing import Any, Literal
 
 from app import advisory, engine
 from app.engine import Decision, Expense
-from app.rules import Rule, compile_text_rules, infer_category, normalize_category, parse_rules
+from app.rules import (
+    Rule,
+    compile_text_rules,
+    infer_category,
+    normalize_category,
+    parse_rules,
+)
 
 logger = logging.getLogger("grantanchor.compliance")
 
@@ -152,7 +158,11 @@ def diff(with_memory: dict[str, Any], without_memory: dict[str, Any]) -> dict[st
         "utilization_delta": util_delta,
         "summary": (
             f"Memory surfaced {len(caught)} additional finding(s)"
-            + (f" and changed the verdict to {with_memory['status']}" if with_memory["status"] != without_memory["status"] else "")
+            + (
+                f" and changed the verdict to {with_memory['status']}"
+                if with_memory["status"] != without_memory["status"]
+                else ""
+            )
             + "."
         ),
     }

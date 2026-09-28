@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in · GrantAnchor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Geist', 'system-ui', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } };</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+  <style>[x-cloak]{display:none!important} body{background:#09090b}</style>
+</head>
+<body class="min-h-screen text-zinc-200 font-sans antialiased" x-data="loginPage()">
+  <div class="min-h-screen grid lg:grid-cols-2">
+    <!-- Story -->
+    <aside class="hidden lg:flex flex-col justify-between p-12 border-r border-zinc-800 bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.10),transparent_60%)]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-emerald-400 text-zinc-950 grid place-items-center font-bold">G</div>
+        <span class="font-semibold tracking-tight text-white">GrantAnchor</span>
+      </div>
+      <div class="max-w-md">
+        <h1 class="text-4xl font-semibold tracking-tight text-white leading-tight">Know if you can spend it, before you spend it.</h1>
+        <p class="mt-4 text-zinc-400 leading-relaxed">Grant agreements have caps, deadlines and restrictions that are easy to forget. GrantAnchor remembers every expense your team records and checks each new one against the rules, so a travel booking in September can't quietly break a limit you agreed to in January.</p>
+        <ul class="mt-8 space-y-3 text-sm text-zinc-300">
+          <li class="flex gap-3"><span class="text-emerald-400">●</span>Answers in plain words: go, careful, or stop.</li>
+          <li class="flex gap-3"><span class="text-amber-400">●</span>Warns you when a limit is getting close, not after it's broken.</li>
+          <li class="flex gap-3"><span class="text-sky-400">●</span>Long-term memory powered by Hindsight, so history is never lost.</li>
+        </ul>
+      </div>
+      <p class="text-xs text-zinc-600">Your data stays in your workspace database. Passwords are stored only as salted hashes.</p>
+    </aside>
+
+    <!-- Form -->
+    <main class="flex items-center justify-center p-6">
+      <div class="w-full max-w-sm">
+        <div class="lg:hidden flex items-center gap-2.5 mb-10">
+          <div class="w-8 h-8 rounded-lg bg-emerald-400 text-zinc-950 grid place-items-center font-bold">G</div>
+          <span class="font-semibold text-white">GrantAnchor</span>
+        </div>
+        <h2 class="text-2xl font-semibold text-white" x-text="mode === 'login' ? 'Welcome back' : 'Create your account'"></h2>
+        <p class="mt-1 text-sm text-zinc-400" x-text="mode === 'login' ? 'Sign in to check spending against your grants.' : 'The first account in a workspace becomes its admin.'"></p>
+
+        <div class="mt-6 grid grid-cols-2 p-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm" role="tablist">
+          <button type="button" role="tab" :aria-selected="mode==='login'" @click="mode='login'; error=''" :class="mode==='login' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'" class="py-1.5 rounded-md transition">Sign in</button>
+          <button type="button" role="tab" :aria-selected="mode==='signup'" @click="mode='signup'; error=''" :class="mode==='signup' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'" class="py-1.5 rounded-md transition">Create account</button>
+        </div>
+
+        <form class="mt-6 space-y-4" @submit.prevent="submit()">
+          <div x-show="mode === 'signup'" x-cloak>
+            <label for="name" class="block text-sm text-zinc-300 mb-1.5">Your name</label>
+            <input id="name" x-model="name" autocomplete="name" class="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
+          </div>
+          <div>
+            <label for="email" class="block text-sm text-zinc-300 mb-1.5">Work email</label>
+            <input id="email" type="email" x-model="email" autocomplete="email" required class="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
+          </div>
+          <div>
+            <label for="password" class="block text-sm text-zinc-300 mb-1.5">Password</label>
+            <input id="password" type="password" x-model="password" required :autocomplete="mode==='login' ? 'current-password' : 'new-password'" class="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60" />
+            <p x-show="mode==='signup'" x-cloak class="mt-1.5 text-xs text-zinc-500">At least 8 characters.</p>
+          </div>
+          <p x-show="error" x-cloak class="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2" role="alert" x-text="error"></p>
+          <button type="submit" :disabled="busy" class="w-full rounded-lg bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold py-2.5 text-sm transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <span x-text="busy ? 'One moment…' : (mode === 'login' ? 'Sign in' : 'Create account')"></span>
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function loginPage() {
+      return {
+        mode: 'login', name: '', email: '', password: '', error: '', busy: false,
+        async submit() {
+          this.error = ''; this.busy = true;
+          const body = this.mode === 'login'
+            ? { email: this.email, password: this.password }
+            : { email: this.email, password: this.password, name: this.name || this.email.split('@')[0] };
+          try {
+            const res = await fetch('/api/auth/' + this.mode, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              const d = data.detail;
+              this.error = Array.isArray(d) ? this.friendly(d) : (d || 'Something went wrong. Try again.');
+              return;
+            }
+            window.location.href = '/';
+          } catch (e) {
+            this.error = "Can't reach the server. Check your connection.";
+          } finally { this.busy = false; }
+        },
+        friendly(errs) {
+          const f = (errs[0].loc || []).slice(-1)[0];
+          if (f === 'password') return 'Password must be at least 8 characters.';
+          if (f === 'email') return 'Enter a valid email address.';
+          return errs[0].msg;
+        },
+      };
+    }
+  </script>
+</body>
+</html>

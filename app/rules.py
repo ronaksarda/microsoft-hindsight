@@ -6,7 +6,14 @@ import re
 from datetime import date
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
 
 from app.jurisdiction import expand_codes
 
@@ -33,14 +40,44 @@ _CATEGORY_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("Personnel", ("salary", "payroll", "stipend", "wage", "fringe")),
     ("Supplies", ("supplies", "consumable", "reagent", "materials")),
     ("Entertainment", ("party", "entertainment", "gift")),
+    ("Services", ("service", "maintenance", "repair", "calibration", "legal", "accounting", "translation")),
     ("Alcohol", ("alcohol", "wine", "beer", "liquor")),
 ]
+
+
+_SYNONYMS = {
+    "consultant": "Contractor",
+    "consultants": "Contractor",
+    "consulting": "Contractor",
+    "contractors": "Contractor",
+    "subcontract": "Contractor",
+    "subcontracts": "Contractor",
+    "subcontractor": "Contractor",
+    "subcontractors": "Contractor",
+    "subcontracting": "Contractor",
+    "contractual": "Contractor",
+    "salaries": "Personnel",
+    "salary": "Personnel",
+    "wages": "Personnel",
+    "staff": "Personnel",
+    "payroll": "Personnel",
+    "cloud": "Compute",
+    "computing": "Compute",
+    "hardware": "Equipment",
+    "materials": "Supplies",
+    "alcoholic beverages": "Alcohol",
+    "beverages": "Alcohol",
+    "trips": "Travel",
+    "airfare": "Travel",
+}
 
 
 def normalize_category(value: str | None) -> str:
     if not value or not value.strip():
         return "General"
     v = value.strip()
+    if v.lower() in _SYNONYMS:
+        return _SYNONYMS[v.lower()]
     for c in CANONICAL_CATEGORIES:
         if c.lower() == v.lower():
             return c
@@ -78,7 +115,7 @@ class FiscalWindow(BaseModel):
     start_month: int = Field(default=1, ge=1, le=12, description="First month of the fiscal year")
 
 
-Window = Annotated[Union[RollingWindow, FiscalWindow], Field(discriminator="kind")]
+Window = Annotated[RollingWindow | FiscalWindow, Field(discriminator="kind")]
 
 
 # --------------------------------------------------------------------------- #
@@ -145,7 +182,7 @@ class JurisdictionRule(_RuleBase):
     waivable_with_prior_approval: bool = True
 
     @model_validator(mode="after")
-    def _one_list(self) -> "JurisdictionRule":
+    def _one_list(self) -> JurisdictionRule:
         if bool(self.allowed_countries) == bool(self.blocked_countries):
             raise ValueError("set exactly one of allowed_countries or blocked_countries")
         expand_codes(self.allowed_countries or self.blocked_countries or [])
@@ -171,7 +208,7 @@ class BlockedListRule(_RuleBase):
     categories: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _non_empty(self) -> "BlockedListRule":
+    def _non_empty(self) -> BlockedListRule:
         if not self.vendors and not self.categories:
             raise ValueError("blocked_list needs vendors or categories")
         self.categories = [normalize_category(c) for c in self.categories]
@@ -194,23 +231,21 @@ class GrantPeriodRule(_RuleBase):
     end: date
 
     @model_validator(mode="after")
-    def _order(self) -> "GrantPeriodRule":
+    def _order(self) -> GrantPeriodRule:
         if self.start > self.end:
             raise ValueError("start must be on or before end")
         return self
 
 
 Rule = Annotated[
-    Union[
-        CategoryCapRule,
-        SpenderCapRule,
-        VendorCapRule,
-        JurisdictionRule,
-        PriorApprovalRule,
-        BlockedListRule,
-        AllowedCategoriesRule,
-        GrantPeriodRule,
-    ],
+    CategoryCapRule
+    | SpenderCapRule
+    | VendorCapRule
+    | JurisdictionRule
+    | PriorApprovalRule
+    | BlockedListRule
+    | AllowedCategoriesRule
+    | GrantPeriodRule,
     Field(discriminator="type"),
 ]
 
@@ -233,7 +268,7 @@ def parse_rules(raw: list[dict] | None) -> list[Rule]:
 # Text clause compiler (legacy grants that only carry free-text rules)
 # --------------------------------------------------------------------------- #
 
-_MONEY = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)\s*(k)?", re.I)
+_MONEY = re.compile(r"\$\s?([\d,]+(?:\.\d+)?)\s*(k)?", re.IGNORECASE)
 
 
 def compile_text_rules(texts: list[str], home_country: str = "US") -> list[Rule]:
@@ -246,7 +281,7 @@ def compile_text_rules(texts: list[str], home_country: str = "US") -> list[Rule]
     out: list[Rule] = []
     for i, text in enumerate(texts):
         low = text.lower()
-        clause_match = re.match(r"\s*((?:clause|article|section)\s+[\w.]+)", text, re.I)
+        clause_match = re.match(r"\s*((?:clause|article|section)\s+[\w.]+)", text, re.IGNORECASE)
         clause = clause_match.group(1) if clause_match else f"Rule {i + 1}"
         rid = f"compiled_{i + 1}"
         if "foreign" in low and "contractor" in low:

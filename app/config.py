@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Root of the API. Paths such as /v1/default/banks/{bank}/memories are appended.
     hindsight_base_url: str = "https://api.hindsight.vectorize.io"
     hindsight_bank_id: str = "grantanchor-ops-bank"
-    hindsight_timeout_seconds: float = 5.0
+    hindsight_timeout_seconds: float = 15.0
     hindsight_recall_max_tokens: int = 2048
     hindsight_recall_budget: Literal["low", "mid", "high"] = "low"
 
@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     data_dir: Path = BASE_DIR / "data"
     json_store_filename: str = "grant_memory_store.json"
     sqlite_filename: str = "grantanchor.sqlite3"
-    seed_path: Path = BASE_DIR / "data" / "seed_state.json"
+    # Optional JSON file used to pre-fill an empty workspace (tests and demos). None = start empty.
+    seed_path: Path | None = None
+    fx_base_url: str = "https://api.frankfurter.dev/v1"
 
     # --- Security ---
     # Comma-separated key lists. When both are empty, auth is disabled (local development).
@@ -57,6 +59,9 @@ class Settings(BaseSettings):
     max_request_bytes: int = 64 * 1024
     log_level: str = "INFO"
     log_json: bool = True
+
+    require_login: bool = True
+    cookie_secure: bool = False
 
     port: int = 8000
 
@@ -75,7 +80,7 @@ class Settings(BaseSettings):
     @classmethod
     def _strip_version_suffix(cls, v: str) -> str:
         # Earlier configs used ".../v1" as the base; the client appends /v1 itself.
-        return v[: -len("/v1")] if v.endswith("/v1") else v
+        return v.removesuffix("/v1")
 
     @property
     def admin_keys(self) -> set[str]:

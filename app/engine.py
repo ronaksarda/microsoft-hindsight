@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +66,7 @@ class LedgerEntry:
     vendor: str
 
     @classmethod
-    def from_record(cls, m: dict[str, Any]) -> "LedgerEntry":
+    def from_record(cls, m: dict[str, Any]) -> LedgerEntry:
         return cls(
             id=str(m.get("id", "")),
             timestamp=parse_ts(m.get("timestamp")),
@@ -489,9 +490,7 @@ def evaluate(expense: Expense, rules: list[Rule], ledger: list[dict[str, Any]] |
         _DISPATCH[rule.type](ctx, rule)  # type: ignore[operator]
 
     blocking = any(f.severity == "blocking" for f in ctx.findings)
-    status: Status = (
-        "CLAWBACK_RISK_DETECTED" if blocking else "APPROVED_WITH_WARNINGS" if ctx.findings else "APPROVED"
-    )
+    status: Status = "CLAWBACK_RISK_DETECTED" if blocking else "APPROVED_WITH_WARNINGS" if ctx.findings else "APPROVED"
     ctx.findings.sort(key=lambda f: (f.severity != "blocking", -f.score))
     return Decision(
         status=status,
