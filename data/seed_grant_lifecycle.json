@@ -1,0 +1,67 @@
+[
+  {
+    "phase": "award_baseline",
+    "month": 1,
+    "date": "2026-01-15",
+    "award_name": "National Science Tech Grant #NSF-2026-881",
+    "events": [
+      {
+        "type": "grant_rule",
+        "rule_type": "budget_cap",
+        "condition": "Total award amount is $250,000. All expenditures must fall within approved budget categories.",
+        "penalty": "Excess spending requires immediate return of funds and triggers federal audit."
+      },
+      {
+        "type": "grant_rule",
+        "rule_type": "contractor_cap",
+        "condition": "Maximum contractor/subcontractor allocation is $40,000 across the award lifecycle.",
+        "penalty": "Expenditures exceeding contractor cap are disallowed costs subject to clawback."
+      },
+      {
+        "type": "grant_rule",
+        "rule_type": "foreign_contractor_restriction",
+        "condition": "Clause 9.1: Foreign/international contractors are strictly prohibited without written prior approval from the awarding agency. Any engagement of non-domestic vendors requires Agency Form NSF-PA-9.1 filed and approved before contract execution.",
+        "penalty": "Unauthorized foreign contractor payments are immediately disallowed. Full clawback of disbursed funds plus suspension of future drawdowns."
+      },
+      {
+        "type": "grant_rule",
+        "rule_type": "travel_cap",
+        "condition": "Travel expenditures capped at $8,000 for the award period. Domestic travel only unless pre-approved.",
+        "penalty": "Travel costs exceeding cap are disallowed and must be refunded from institutional funds."
+      }
+    ]
+  },
+  {
+    "phase": "logged_spend",
+    "month": 3,
+    "date": "2026-03-20",
+    "award_name": "National Science Tech Grant #NSF-2026-881",
+    "events": [
+      {
+        "type": "expense_record",
+        "description": "Team domestic flight passes and hotel lodging for AI & Machine Learning Conference (Austin, TX)",
+        "amount": 5200.00,
+        "vendor": "Delta Airlines / Marriott Austin Downtown",
+        "budget_category": "travel",
+        "cumulative_travel_spend": 5200.00,
+        "cumulative_contractor_spend": 0.00
+      }
+    ]
+  },
+  {
+    "phase": "incoming_test_expense",
+    "month": 6,
+    "date": "2026-06-28",
+    "award_name": "National Science Tech Grant #NSF-2026-881",
+    "events": [
+      {
+        "type": "proposed_expense",
+        "description": "Contract UI/UX optimization for Milestone 2 deliverables",
+        "amount": 8500.00,
+        "vendor": "Nordic Tech Solutions (Oslo, Norway)",
+        "budget_category": "contractor",
+        "notes": "Foreign vendor — triggers Clause 9.1 review"
+      }
+    ]
+  }
+]
