@@ -11,3 +11,4 @@ htmlcov/
 data/*.tmp
 .venv/
 artifacts/
+data/grant_memory_store.json

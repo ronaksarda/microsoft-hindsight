@@ -6,15 +6,21 @@ import copy
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
+
 logger = logging.getLogger("grantanchor.local_store")
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-STORE_PATH = DATA_DIR / "grant_memory_store.json"
+_LOCK = threading.RLock()
+
+
+def _store_path() -> Path:
+    return Path(settings.data_dir) / settings.json_store_filename
 
 DEFAULT_STORE: dict[str, Any] = {
     "active_grant_id": "NSF-2026-881",
@@ -60,27 +66,29 @@ DEFAULT_STORE: dict[str, Any] = {
 
 def load_store() -> dict[str, Any]:
     """Load store from JSON file; auto-initialize if not present."""
-    if not STORE_PATH.exists():
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = _store_path()
+    if not path.exists():
         save_store(DEFAULT_STORE)
         return copy.deepcopy(DEFAULT_STORE)
 
     try:
-        with open(STORE_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as exc:
-        logger.error("Failed to load store from %s: %s; recreating defaults", STORE_PATH, exc)
+        logger.error("Failed to load store from %s: %s; recreating defaults", path, exc)
         save_store(DEFAULT_STORE)
         return copy.deepcopy(DEFAULT_STORE)
 
 
 def save_store(data: dict[str, Any]) -> None:
     """Save store dictionary to disk atomically."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    temp_path = STORE_PATH.with_suffix(".tmp")
-    with open(temp_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    os.replace(temp_path, STORE_PATH)
+    path = _store_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(".tmp")
+    with _LOCK:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(temp_path, path)
 
 
 def add_memory(
@@ -92,7 +100,6 @@ def add_memory(
     content: str,
 ) -> dict[str, Any]:
     """Append a new spending or milestone memory to local store."""
-    store = load_store()
     mem_id = f"mem_{uuid.uuid4().hex[:6]}"
     record = {
         "id": mem_id,
@@ -104,9 +111,26 @@ def add_memory(
         "vendor": vendor,
         "content": content,
     }
-    store.setdefault("memories", []).append(record)
-    save_store(store)
+    with _LOCK:
+        store = load_store()
+        store.setdefault("memories", []).append(record)
+        save_store(store)
     return record
+
+
+def get_memory(memory_id: str) -> dict[str, Any] | None:
+    return next((m for m in load_store().get("memories", []) if m.get("id") == memory_id), None)
+
+
+def update_memory(memory_id: str, fields: dict[str, Any]) -> dict[str, Any] | None:
+    with _LOCK:
+        store = load_store()
+        for m in store.get("memories", []):
+            if m.get("id") == memory_id:
+                m.update(fields)
+                save_store(store)
+                return m
+    return None
 
 
 def switch_grant(grant_id: str) -> dict[str, Any]:

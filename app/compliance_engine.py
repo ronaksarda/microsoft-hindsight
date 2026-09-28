@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
-import httpx
+from pydantic import BaseModel, ValidationError
 
-from app.config import settings
+from app import llm
 
 logger = logging.getLogger("grantanchor.compliance")
 
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+class _LLMVerdict(BaseModel):
+    status: Literal["APPROVED", "CLAWBACK_RISK_DETECTED"]
+    violations: list[str]
+    cumulative_spend: str
+    remediation: str
 
 
 async def evaluate_compliance(
@@ -83,32 +88,16 @@ async def evaluate_compliance(
         "Evaluate this transaction strictly."
     )
 
-    if settings.groq_api_key:
-        headers = {
-            "Authorization": f"Bearer {settings.groq_api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": settings.groq_model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 1024,
-            "response_format": {"type": "json_object"},
-        }
+    client = llm.get_client()
+    if client.enabled:
         try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                resp = await client.post(GROQ_CHAT_URL, json=payload, headers=headers)
-                resp.raise_for_status()
-                data = resp.json()
-                content = data["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                result["mode"] = "with_memory"
-                return result
-        except Exception as exc:
-            logger.warning("Groq call failed (%s); using deterministic compliance engine", exc)
+            out = await client.complete_json(system_prompt, user_prompt)
+            parsed = _LLMVerdict.model_validate(out.data)
+            result = parsed.model_dump()
+            result["mode"] = "with_memory"
+            return result
+        except (llm.LLMError, ValidationError) as exc:
+            logger.warning("Groq result unusable (%s); using deterministic compliance engine", exc)
 
     # Deterministic compliance fallback ensuring 100% reliable evaluation
     return _deterministic_evaluation(
