@@ -97,6 +97,25 @@ class RecallResponse(BaseModel):
     results: list[RecallResult]
 
 
+class ReflectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1)
+    budget: Literal["low", "mid", "high"] = "low"
+    max_tokens: int = Field(default=2048, gt=0)
+    tags: list[str] | None = None
+    tags_match: Literal["any", "all", "any_strict", "all_strict", "exact"] = "any"
+    response_schema: dict[str, Any] | None = None
+
+
+class ReflectResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    text: str
+    structured_output: dict[str, Any] | None = None
+    structured_output_error: str | None = None
+
+
 class HindsightError(Exception):
     """Raised for any failed Hindsight call. ``retryable`` drives the outbox."""
 
@@ -158,16 +177,18 @@ class HindsightClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-    def _client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, transport=self._transport)
+    def _client(self, timeout: float | None = None) -> httpx.AsyncClient:
+        return httpx.AsyncClient(base_url=self.base_url, timeout=timeout or self.timeout, transport=self._transport)
 
-    async def _request(self, method: str, path: str, json: Any = None, *, trip_on_fail: bool = True) -> httpx.Response:
+    async def _request(
+        self, method: str, path: str, json: Any = None, *, trip_on_fail: bool = True, timeout: float | None = None
+    ) -> httpx.Response:
         if not self.enabled:
             raise HindsightDisabled()
         if self.circuit_open:
             raise HindsightError("circuit open", retryable=True)
         try:
-            async with self._client() as client:
+            async with self._client(timeout) as client:
                 resp = await client.request(method, path, json=json, headers=self._headers())
         except httpx.HTTPError as exc:
             if trip_on_fail:
@@ -247,6 +268,19 @@ class HindsightClient:
             return RecallResponse.model_validate(resp.json()).results
         except (ValidationError, ValueError) as exc:
             raise HindsightError(f"unexpected recall response: {exc}", retryable=False) from exc
+
+    async def reflect(
+        self, query: str, *, tags: list[str] | None = None, response_schema: dict[str, Any] | None = None
+    ) -> ReflectResponse:
+        """Ask Hindsight to reason over the bank's memories (``POST .../reflect``). Slower than recall (~10 s)."""
+        req = ReflectRequest(query=query, tags=tags, tags_match="any_strict" if tags else "any",
+                             response_schema=response_schema)
+        resp = await self._request("POST", self._bank_path("/reflect"), json=req.model_dump(exclude_none=True),
+                                   trip_on_fail=False, timeout=max(self.timeout, 60.0))
+        try:
+            return ReflectResponse.model_validate(resp.json())
+        except (ValidationError, ValueError) as exc:
+            raise HindsightError(f"unexpected reflect response: {exc}", retryable=False) from exc
 
     async def delete_document(self, document_id: str) -> None:
         try:

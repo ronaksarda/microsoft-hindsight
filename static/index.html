@@ -123,6 +123,31 @@
         </div>
       </div>
 
+      <div class="card p-5">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="sm:w-64 shrink-0">
+            <h2 class="text-base font-semibold text-white">What we've learned</h2>
+            <p class="text-sm text-zinc-400 mt-1" x-text="memStats.level || ''"></p>
+            <div class="mt-3 flex items-end gap-1 h-10" aria-hidden="true">
+              <template x-for="n in 12" :key="n"><div class="flex-1 rounded-sm" :class="n <= learnBars() ? 'bg-violet-400' : 'bg-zinc-800'" :style="`height:${25 + n * 6}%`"></div></template>
+            </div>
+            <p class="mt-2 text-xs text-zinc-500" x-text="`Learned from ${memStats.expenses || 0} expenses, ${memStats.by_kind?.decision || 0} stopped payments, ${memStats.by_kind?.approval || 0} approvals and ${memStats.by_kind?.overrun || 0} corrections.`"></p>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs text-zinc-500" x-text="lessonsNote()"></span>
+              <button type="button" @click="loadLessons(true)" :disabled="busy === 'lessons' || !lessonsAvailable()" class="text-xs rounded-lg px-3 py-1.5 border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'lessons' ? 'Hindsight is thinking…' : 'Refresh lessons'"></button>
+            </div>
+            <ol class="mt-3 space-y-2">
+              <template x-for="(l, i) in (lessons?.lessons || [])" :key="i">
+                <li class="flex gap-3 text-sm"><span class="num text-violet-300 shrink-0" x-text="i + 1"></span><span><span class="text-zinc-200" x-text="l.lesson"></span><span x-show="l.evidence" class="block text-xs text-zinc-500 mt-0.5" x-text="l.evidence"></span></span></li>
+              </template>
+            </ol>
+            <p x-show="lessons && lessons.status === 'invalid' && lessons.summary" class="mt-3 text-sm text-zinc-300 whitespace-pre-line" x-text="lessons?.summary"></p>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div class="card p-5 lg:col-span-5">
           <h2 class="text-lg font-semibold text-white">Can we spend this?</h2>
@@ -220,18 +245,34 @@
                 <div class="flex justify-between text-[11px] text-zinc-500 mt-2"><span>Safe</span><span>Watch</span><span>Stop</span></div>
               </div>
 
-              <template x-if="preview.diff.caught_by_memory.length || preview.diff.status_changed">
+              <template x-if="brief && hasBrief()">
+                <div class="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-2 fade-in">
+                  <div class="flex items-center justify-between gap-2"><span class="text-sm font-medium text-violet-200">What GrantAnchor remembers</span><span class="text-[11px] text-zinc-500" x-text="brief.source === 'hindsight' ? 'from Hindsight memory' : 'from local memory'"></span></div>
+                  <template x-if="brief.suggested_approval && !form.prior_approval_ref">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-zinc-200">
+                      <span class="flex-1" x-text="`Last time, ${brief.suggested_approval.vendor} was paid under funder approval ${brief.suggested_approval.ref} (${niceDate(brief.suggested_approval.when)}).`"></span>
+                      <button type="button" @click="form.prior_approval_ref = brief.suggested_approval.ref" class="shrink-0 rounded-lg px-3 py-1.5 text-xs bg-violet-400 text-zinc-950 font-semibold hover:bg-violet-300" x-text="`Use ${brief.suggested_approval.ref}`"></button>
+                    </div>
+                  </template>
+                  <template x-if="brief.overrun">
+                    <p class="text-sm text-zinc-200"><span x-text="`${brief.overrun.spender}'s final invoices have come in ${brief.overrun.avg_pct}% above the checked amount (${brief.overrun.times} time${brief.overrun.times === 1 ? '' : 's'}).`"></span> <span class="text-amber-300" x-show="overrunRisk()" x-text="overrunRisk()"></span></p>
+                  </template>
+                  <p x-show="brief.past_stops" class="text-sm text-zinc-300" x-text="`${brief.past_stops} earlier payment${brief.past_stops === 1 ? ' involving this vendor or person was' : 's involving this vendor or person were'} stopped.`"></p>
+                  <ul class="space-y-1"><template x-for="(m, i) in brief.memories.slice(0, 3)" :key="i"><li class="text-xs text-zinc-400"><span class="text-violet-300/80" x-text="`${ {decision: 'Stopped', approval: 'Approved', overrun: 'Overrun', expense: 'Expense'}[m.kind] || m.kind } · ${niceDate(m.when)}: `"></span><span x-text="m.text"></span></li></template></ul>
+                </div>
+              </template>
+              <template x-if="preview?.diff?.caught_by_memory?.length || preview?.diff?.status_changed">
                 <div class="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
                   <div class="text-sm font-medium text-sky-200">Memory changed the answer</div>
-                  <p class="text-sm text-zinc-300 mt-1">On its own, this expense looks <span class="font-medium" :class="tone(preview.without_memory.status).text" x-text="tone(preview.without_memory.status).short"></span>. GrantAnchor remembered what the team already spent:</p>
+                  <p class="text-sm text-zinc-300 mt-1">On its own, this expense looks <span class="font-medium" :class="tone(preview?.without_memory?.status).text" x-text="tone(preview?.without_memory?.status).short"></span>. GrantAnchor remembered what the team already spent:</p>
                   <ul class="mt-2 space-y-1">
-                    <template x-for="e in preview.evidence.slice(0, 4)" :key="e.id">
+                    <template x-for="e in (preview?.evidence || []).slice(0, 4)" :key="e.id">
                       <li class="flex justify-between gap-3 text-xs text-zinc-400"><span class="truncate" x-text="`${niceDate(e.timestamp)} · ${e.spender} · ${e.vendor}`"></span><span class="num text-zinc-200 shrink-0" x-text="money(e.amount)"></span></li>
                     </template>
                   </ul>
                 </div>
               </template>
-              <template x-if="!preview.diff.caught_by_memory.length && !preview.diff.status_changed">
+              <template x-if="!preview?.diff?.caught_by_memory?.length && !preview?.diff?.status_changed">
                 <p class="text-xs text-zinc-500">Checked against <span class="num" x-text="v().ledger_entries_considered"></span> past expenses. Nothing in the history changes this answer.</p>
               </template>
 
@@ -281,7 +322,7 @@
 
               <div class="flex-1"></div>
               <div class="flex flex-col sm:flex-row gap-2">
-                <button type="button" @click="record()" :disabled="!!busy || !canRecord()" class="flex-1 rounded-lg py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950 focus:ring-emerald-200' : 'bg-zinc-800 text-zinc-500'" x-text="recordLabel()"></button>
+                <button type="button" @click="record()" :disabled="!!busy || !(canRecord() || canNoteStop())" class="flex-1 rounded-lg py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950 focus:ring-emerald-200' : canNoteStop() ? 'border border-rose-500/50 text-rose-200 hover:bg-rose-500/10 focus:ring-rose-400' : 'bg-zinc-800 text-zinc-500'" x-text="recordLabel()"></button>
                 <button type="button" @click="secondOpinion()" :disabled="!!busy || !formReady()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'second' ? 'Thinking…' : 'Ask AI for a second opinion'"></button>
                 <button type="button" x-show="v().status === 'CLAWBACK_RISK_DETECTED'" @click="openDraft()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900">Draft approval request</button>
               </div>
@@ -705,6 +746,7 @@ function app() {
     form: { spender_id: '', vendor: '', location: '', amount: null, purpose: '', category: '', expense_date: '', prior_approval_ref: '', currency: '', useOwnRate: false, fx_rate: null },
     ledger: { items: [], total: 0 }, ledgerQ: '', ledgerCat: '',
     memQ: '', memRes: null, history: [], histFilter: '',
+    brief: null, lessons: null, memStats: {}, _bq: '',
     currencies: {}, gEdit: {}, gNew: {}, newOpen: false, newError: '', ruleOpen: false, ruleError: '', rd: {}, newClause: '',
     importOpen: false, importText: '', importRes: null, importPick: [], importFile: '', dragging: false,
     editOpen: false, editTarget: null, ed: {}, editConflict: null, memberEdit: {},
@@ -732,6 +774,8 @@ function app() {
       this.booting = false;
       let timer;
       this.$watch('ed', () => { this.editConflict = null; });
+      let btimer;
+      this.$watch(() => `${this.form.vendor}|${this.form.spender_id}|${this.form.category}|${this.grantId}`, () => { clearTimeout(btimer); btimer = setTimeout(() => this.loadBrief(), 600); });
       this.$watch('form', () => { clearTimeout(timer); this.second = null; timer = setTimeout(() => this.runPreview(), 350); });
     },
 
@@ -762,6 +806,7 @@ function app() {
         this.api(`/api/audits?grant_id=${encodeURIComponent(this.grantId)}`),
       ]);
       this.dash = d; this.history = h.items; this.loadEdit();
+      this.api(`/api/memory/stats?grant_id=${encodeURIComponent(this.grantId)}`).then(r => { this.memStats = r; if (!this.lessons || this.lessons.grant !== this.grantId) this.loadLessons(false); }).catch(() => {});
       this._cats = this.mergeCats(Object.keys(d.by_category || {}));
       if (this.tab === 'ledger') this.loadLedger();
     },
@@ -795,15 +840,17 @@ function app() {
       catch (e) { if (seq === this._pv) { this.preview = null; if (e.status === 503) this.toast(e.message, 'error'); } }
       finally { if (seq === this._pv) this.previewing = false; }
     },
-    v() { return this.preview.with_memory; },
+    v() { return this.preview?.with_memory || { status: '', findings: [], utilization: [], risk_score: 0, category: '' }; },
     canRecord() { return !!this.preview && this.formReady() && this.v().status !== 'CLAWBACK_RISK_DETECTED'; },
     recordLabel() {
       if (this.busy === 'record') return 'Recording…';
       if (this.canRecord()) return 'Record this expense';
-      return this.formReady() ? "Can't record until the issues are fixed" : 'Fill in vendor and purpose to record';
+      if (this.canNoteStop()) return "Don't pay. Keep a note that it was stopped";
+      return 'Fill in vendor and purpose to record';
     },
+    canNoteStop() { return !!this.preview && this.formReady() && this.v().status === 'CLAWBACK_RISK_DETECTED'; },
     async record() {
-      if (!this.canRecord()) return;
+      if (!this.canRecord() && !this.canNoteStop()) return;
       this.busy = 'record';
       try {
         const r = await this.api('/api/audit-expense', { method: 'POST', body: JSON.stringify(this.payload({ mode: 'with_memory', commit: true })) });
@@ -813,8 +860,8 @@ function app() {
           const paid = r.expense.fx ? `${this.money(r.expense.fx.original_amount, r.expense.fx.original_currency)} (${this.money(r.expense.amount)})` : this.money(r.expense.amount);
           this.toast(`Recorded ${paid} to ${r.expense.vendor}. ${where}`);
           Object.assign(this.form, { vendor: '', location: '', amount: null, purpose: '', category: '', prior_approval_ref: '', useOwnRate: false, fx_rate: null });
-          this.preview = null;
-        } else { this.toast('Not recorded: the check found a blocking issue.', 'error'); }
+          this.preview = null; this.brief = null;
+        } else { this.toast("Noted as stopped. Nothing was recorded, and GrantAnchor will remember this next time."); this.loadBrief(); }
         await this.loadState(); await this.refresh();
       } catch (e) { this.toast(e.message, 'error'); }
       this.busy = '';
@@ -988,6 +1035,45 @@ function app() {
       return `1 ${f.original_currency} = ${f.fx_rate} ${f.grant_currency} · ${src}, ${this.niceDate(f.fx_rate_date)}`;
     },
     fxConverted() { const f = this.fxInfo(); return f ? '= ' + this.money(f.converted_amount) : ''; },
+
+    // ---------- learning ----------
+    async loadBrief() {
+      if (!this.grantId || !(this.form.vendor.trim() || this.form.spender_id)) { this.brief = null; return; }
+      const q = JSON.stringify({ grant_id: this.grantId, vendor: this.form.vendor.trim(), spender_id: this.form.spender_id, category: this.form.category || '' });
+      this._bq = q;
+      try { const r = await this.api('/api/memory/briefing', { method: 'POST', body: q }); if (this._bq === q) { this.brief = r; this.memStats = r.stats; } }
+      catch (e) { if (this._bq === q) this.brief = null; }
+    },
+    hasBrief() { const b = this.brief; return !!(b && (b.suggested_approval || b.overrun || b.past_stops || b.memories.length)); },
+    overrunRisk() {
+      const o = this.brief?.overrun, v = this.preview?.with_memory;
+      if (!o || !v) return '';
+      for (const u of (v.utilization || [])) {
+        const est = u.prior + (u.projected - u.prior) * (1 + o.avg_pct / 100);
+        if (u.projected <= u.cap && est > u.cap) return `At that rate this would really be about ${this.money(est - u.prior)}, which breaks the ${this.money(u.cap)} ${u.label} limit. Budget for it now.`;
+      }
+      const amt = v.amount || 0;
+      return `Expect about ${this.money(amt * (1 + o.avg_pct / 100))} on the final invoice.`;
+    },
+    async loadLessons(refresh) {
+      if (!this.grantId) return;
+      const gid = this.grantId;
+      this.busy = refresh ? 'lessons' : this.busy;
+      try { const r = await this.api(`/api/memory/lessons?grant_id=${encodeURIComponent(gid)}${refresh ? '&refresh=true' : ''}`); r.grant = gid; if (gid === this.grantId) { this.lessons = r; this.memStats = r.stats || this.memStats; } }
+      catch (e) { if (refresh) this.toast(e.message, 'error'); }
+      if (refresh) this.busy = '';
+    },
+    lessonsAvailable() { return this.health.hindsight?.status === 'ok' || this.lessons?.status === 'ok'; },
+    lessonsNote() {
+      const l = this.lessons;
+      if (!l) return 'Loading…';
+      if (l.status === 'disabled') return 'Connect Hindsight (HINDSIGHT_API_KEY) and it will turn this experience into lessons.';
+      if (l.status === 'empty') return 'Nothing learned yet. Every check, approval and correction teaches it something.';
+      if (l.status === 'unavailable') return "Hindsight couldn't be reached. Try Refresh lessons.";
+      if (l.status === 'ok') return `Written by Hindsight from everything it remembers about this grant${l.generated_at ? ' · ' + this.niceDateTime(l.generated_at) : ''}.`;
+      return 'Hindsight answered in free text:';
+    },
+    learnBars() { const n = this.memStats.total || 0; return Math.min(12, Math.ceil(Math.log2(n + 1) * 2.4)); },
 
     // ---------- uploads & edits ----------
     async uploadFile(file, forNew) {

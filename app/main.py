@@ -27,6 +27,7 @@ from app import (
     grant_import,
     hindsight,
     insights,
+    learning,
     llm,
     local_store,
     memory_sync,
@@ -642,6 +643,7 @@ async def audit_expense(req: AuditExpenseRequest, request: Request) -> dict[str,
     result["memory_id"] = committed["id"] if committed else None
     result["sync_status"] = committed.get("sync_status") if committed else None
     result["recalled"] = recalled[:5]
+    await _learn_from_check(grant, spender, req, expense, decision, committed)
     local_store.add_audit(
         req.grant_id,
         _history_entry(
@@ -664,6 +666,31 @@ async def audit_expense(req: AuditExpenseRequest, request: Request) -> dict[str,
         },
         "recalled_count": len(recalled),
     }
+
+
+async def _learn_from_check(grant: dict[str, Any], spender: dict[str, Any], req: AuditExpenseRequest,
+                            expense: engine.Expense, decision: engine.Decision, committed: dict[str, Any] | None) -> None:
+    """Turn what just happened into experience Hindsight can use next time."""
+    cur = (grant.get("currency") or "USD").upper()
+    who_ = spender.get("name", "someone")
+    base = dict(vendor=req.vendor, spender_id=req.spender_id, spender=who_, category=expense.category)
+    if decision.blocking:
+        f = decision.blocking[0]
+        await learning.remember(
+            "decision", req.grant_id,
+            f"GrantAnchor stopped a {cur} {expense.amount:,.2f} {expense.category} payment to {req.vendor} for "
+            f"{who_} dated {expense.expense_date.date().isoformat()}. {f.message}",
+            clause=f.clause, code=f.code, **base,
+        )
+    elif committed and req.prior_approval_ref:
+        waived = next((f for f in decision.findings if f.code == "JURISDICTION_WAIVED"), None)
+        await learning.remember(
+            "approval", req.grant_id,
+            f"{req.vendor} ({req.location or 'location not given'}): a {cur} {expense.amount:,.2f} "
+            f"{expense.category} payment was allowed under funder approval {req.prior_approval_ref}"
+            + (f" ({waived.clause})." if waived else "."),
+            approval_ref=req.prior_approval_ref, clause=waived.clause if waived else "", **base,
+        )
 
 
 async def _compare(req: AuditExpenseRequest, *, advisory: bool) -> dict[str, Any]:
@@ -847,6 +874,18 @@ async def edit_memory(memory_id: str, req: MemoryPatch, request: Request) -> Any
     updated = local_store.update_memory(memory_id, {**changes, "edits": edits, "sync_status": "pending"})
     assert updated is not None
     await memory_sync.sync_record(updated)
+    old_amt, new_amt = float(m.get("amount") or 0), float(updated.get("amount") or 0)
+    if "amount" in diff and old_amt > 0 and new_amt > old_amt:
+        pct = (new_amt - old_amt) / old_amt * 100
+        cur = (g.get("currency") or "USD").upper()
+        await learning.remember(
+            "overrun", m["grant_id"],
+            f"{updated.get('spender')}'s {updated.get('category')} expense with {updated.get('vendor')} was checked "
+            f"at {cur} {old_amt:,.2f} but the final amount was {cur} {new_amt:,.2f}, {pct:.0f}% more. "
+            f"Reason given: {req.reason}.",
+            vendor=updated.get("vendor", ""), spender_id=updated.get("spender_id") or "",
+            spender=updated.get("spender", ""), overrun_pct=round(pct, 1), category=updated.get("category", ""),
+        )
     local_store.add_audit(
         m["grant_id"],
         {
@@ -905,6 +944,36 @@ async def sync_all(grant_id: str | None = None) -> dict[str, Any]:
     """Push every unsynced ledger entry to Hindsight."""
     hindsight.get_client().reset_circuit()
     return {"result": await memory_sync.sync_pending(grant_id, limit=200)}
+
+
+class BriefingRequest(BaseModel):
+    grant_id: str
+    vendor: str = Field(default="", max_length=200)
+    spender_id: str = Field(default="", max_length=64)
+    category: str = Field(default="", max_length=60)
+
+
+@app.post("/api/memory/briefing", tags=["memory"])
+async def memory_briefing(req: BriefingRequest) -> dict[str, Any]:
+    """What GrantAnchor remembers about this vendor, person and category: past stops, a funder approval
+    reference to reuse, and the person's typical overrun. Advisory only."""
+    _, store = _grant(req.grant_id)
+    person = next((t for t in store["team_members"] if t["id"] == req.spender_id), {})
+    return await learning.briefing(req.grant_id, vendor=req.vendor.strip(), spender_id=req.spender_id,
+                                   spender=person.get("name", ""), category=req.category)
+
+
+@app.get("/api/memory/lessons", tags=["memory"])
+async def memory_lessons(grant_id: str, refresh: bool = False) -> dict[str, Any]:
+    """Lessons learned on this grant, written by Hindsight reflect from everything it remembers."""
+    g, _ = _grant(grant_id)
+    return await learning.lessons(grant_id, g.get("name", grant_id), refresh=refresh)
+
+
+@app.get("/api/memory/stats", tags=["memory"])
+async def memory_stats(grant_id: str) -> dict[str, Any]:
+    _grant(grant_id)
+    return learning.stats(grant_id)
 
 
 @app.get("/api/memory/recall", tags=["ledger"])

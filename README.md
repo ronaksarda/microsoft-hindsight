@@ -16,6 +16,10 @@ GrantAnchor checks every expense against the grant's rules and against everythin
 
   Each comes with the reason in plain words and a 0 to 100 risk score.
 - **Remembers.** Every recorded expense is kept, so a $1,000 flight gets flagged when someone else already spent $2,000 on travel this quarter. When history changes the answer, it shows you which past expenses did it.
+- **Gets better the more you use it.** Every stopped payment, funder approval and invoice that came in higher than checked is saved to Hindsight memory. The next check draws on it:
+  - For a vendor it has seen before: "Last time Studio Nord was paid under approval HLRF-PA-12. Use it?" (one click)
+  - For a person whose final invoices usually come in higher: "Maya's invoices usually come in 68% higher. At that rate this breaks the travel limit."
+  - A "What we've learned" card on Overview shows lessons Hindsight writes from everything it remembers, plus a meter that fills up as it learns.
 - **Handles other currencies.** Pay a vendor in euros or rupees and it's converted to the grant's currency at the European Central Bank rate for that day. You can use your own rate instead. Both amounts are kept.
 - **Keeps a clean record.** Expenses can be edited or removed. Every change needs a reason and is kept in History. An edit that would break a rule needs your confirmation.
 - **Gives a second opinion.** An AI model reads the clauses that can't be checked by rules, like reporting deadlines, and adds notes. It can never change the answer.

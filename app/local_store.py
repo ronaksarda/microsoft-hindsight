@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
     role TEXT NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS memory_events (
+    id TEXT PRIMARY KEY, grant_id TEXT NOT NULL, kind TEXT NOT NULL, created_at TEXT NOT NULL, data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_events_grant ON memory_events(grant_id, created_at);
 CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL);
 """
 
@@ -126,6 +130,7 @@ def _write_all(data: dict[str, Any]) -> None:
             c.execute("DELETE FROM grants")
             c.execute("DELETE FROM members")
             c.execute("DELETE FROM memories")
+            c.execute("DELETE FROM memory_events")
             for gid, g in data.get("grants", {}).items():
                 c.execute("INSERT INTO grants(id, data) VALUES(?, ?)", (gid, json.dumps(g)))
             for m in data.get("team_members", []):
