@@ -22,46 +22,12 @@ _LOCK = threading.RLock()
 def _store_path() -> Path:
     return Path(settings.data_dir) / settings.json_store_filename
 
-DEFAULT_STORE: dict[str, Any] = {
-    "active_grant_id": "NSF-2026-881",
-    "grants": {
-        "NSF-2026-881": {
-            "name": "NSF DeepTech Phase I",
-            "total_funding": 250000,
-            "currency": "USD",
-            "rules": [
-                "Clause 9.1: Zero foreign contractor spend without 30-day prior written agency approval.",
-                "Clause 4.2: Cumulative travel expenses capped at $8,000 total across all team members."
-            ]
-        },
-        "EU-HORIZON-409": {
-            "name": "Horizon Europe EIC Transition",
-            "total_funding": 1200000,
-            "currency": "EUR",
-            "rules": [
-                "Article 12: Subcontracting capped at 15% of total budget.",
-                "Article 6: Equipment deprecation must span 36 months minimum."
-            ]
-        }
-    },
-    "team_members": [
-        {"id": "tm_1", "name": "Ronak Sarda", "role": "Lead Architect"},
-        {"id": "tm_2", "name": "Sarah Miller", "role": "Head of Operations"},
-        {"id": "tm_3", "name": "David Park", "role": "Senior ML Engineer"}
-    ],
-    "memories": [
-        {
-            "id": "mem_01",
-            "grant_id": "NSF-2026-881",
-            "timestamp": "2026-06-15T10:00:00Z",
-            "spender": "Sarah Miller",
-            "category": "Travel",
-            "amount": 5400,
-            "vendor": "Lufthansa / Marriott Munich",
-            "content": "Sarah Miller booked transatlantic flights and lodging for 2 devs attending NeurIPS Munich ($5,400 of $8,000 travel cap)."
-        }
-    ]
-}
+def _load_seed() -> dict[str, Any]:
+    with open(settings.seed_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+DEFAULT_STORE: dict[str, Any] = _load_seed()
 
 
 def load_store() -> dict[str, Any]:
@@ -98,6 +64,7 @@ def add_memory(
     amount: float,
     vendor: str,
     content: str,
+    **extra: Any,
 ) -> dict[str, Any]:
     """Append a new spending or milestone memory to local store."""
     mem_id = f"mem_{uuid.uuid4().hex[:6]}"
@@ -111,6 +78,7 @@ def add_memory(
         "vendor": vendor,
         "content": content,
     }
+    record.update({k: v for k, v in extra.items() if v is not None})
     with _LOCK:
         store = load_store()
         store.setdefault("memories", []).append(record)

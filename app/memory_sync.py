@@ -20,14 +20,22 @@ async def record_memory(
     content: str,
     timestamp: str | None = None,
     context: str = "",
+    spender_id: str | None = None,
+    location: str = "",
 ) -> dict[str, Any]:
     """Write the ledger entry locally first, then try to retain it in Hindsight."""
     grant_id = grant_id or local_store.load_store().get("active_grant_id", "")
     record = local_store.add_memory(
-        grant_id=grant_id, spender=spender, category=category, amount=amount, vendor=vendor, content=content
+        grant_id=grant_id,
+        spender=spender,
+        category=category,
+        amount=amount,
+        vendor=vendor,
+        content=content,
+        location=location,
+        spender_id=spender_id,
+        timestamp=timestamp,
     )
-    if timestamp:
-        record = local_store.update_memory(record["id"], {"timestamp": timestamp}) or record
     status = await sync_record(record)
     return {"status": status, "record": local_store.get_memory(record["id"]) or record}
 

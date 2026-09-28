@@ -1,0 +1,94 @@
+{
+  "active_grant_id": "NSF-2026-881",
+  "grants": {
+    "NSF-2026-881": {
+      "name": "NSF DeepTech Phase I",
+      "total_funding": 250000,
+      "currency": "USD",
+      "home_country": "US",
+      "start_date": "2026-01-01",
+      "end_date": "2027-12-31",
+      "rules": [
+        "Clause 2.1: Costs are allowable only within the period of performance (2026-01-01 to 2027-12-31).",
+        "Clause 3.1: Total award spend may not exceed $250,000.",
+        "Clause 4.2: Cumulative travel expenses capped at $8,000 total across all team members.",
+        "Clause 4.3: Compute spend capped at $15,000 per fiscal quarter.",
+        "Clause 5.1: Contractor and subcontractor spend capped at $40,000 across the award.",
+        "Clause 5.2: No more than $20,000 to any single vendor per rolling 365 days.",
+        "Clause 6.1: No team member may commit more than $30,000 per rolling 90 days.",
+        "Clause 7.1: Equipment purchases above $5,000 require written prior approval.",
+        "Clause 8.1: Alcohol and entertainment are unallowable costs.",
+        "Clause 9.1: Zero foreign contractor spend without 30-day prior written agency approval.",
+        "Clause 10.2: Participant support costs may not be rebudgeted without agency approval."
+      ],
+      "policies": [
+        {"id": "nsf-period", "type": "grant_period", "clause": "Clause 2.1", "start": "2026-01-01", "end": "2027-12-31",
+         "description": "Clause 2.1: Costs are allowable only within the period of performance (2026-01-01 to 2027-12-31)."},
+        {"id": "nsf-total", "type": "category_cap", "clause": "Clause 3.1", "category": null, "cap": 250000, "warn_at_pct": 90,
+         "description": "Clause 3.1: Total award spend may not exceed $250,000."},
+        {"id": "nsf-travel", "type": "category_cap", "clause": "Clause 4.2", "category": "Travel", "cap": 8000, "warn_at_pct": 80,
+         "description": "Clause 4.2: Cumulative travel expenses capped at $8,000 total across all team members."},
+        {"id": "nsf-compute-q", "type": "category_cap", "clause": "Clause 4.3", "category": "Compute", "cap": 15000,
+         "window": {"kind": "fiscal", "period": "quarter", "start_month": 10}, "warn_at_pct": 80,
+         "description": "Clause 4.3: Compute spend capped at $15,000 per fiscal quarter."},
+        {"id": "nsf-contractor", "type": "category_cap", "clause": "Clause 5.1", "category": "Contractor", "cap": 40000, "warn_at_pct": 80,
+         "description": "Clause 5.1: Contractor and subcontractor spend capped at $40,000 across the award."},
+        {"id": "nsf-vendor", "type": "vendor_cap", "clause": "Clause 5.2", "vendor": null, "cap": 20000,
+         "window": {"kind": "rolling", "days": 365}, "warn_at_pct": 80,
+         "description": "Clause 5.2: No more than $20,000 to any single vendor per rolling 365 days."},
+        {"id": "nsf-spender", "type": "spender_cap", "clause": "Clause 6.1", "spender": null, "cap": 30000,
+         "window": {"kind": "rolling", "days": 90}, "warn_at_pct": 80,
+         "description": "Clause 6.1: No team member may commit more than $30,000 per rolling 90 days."},
+        {"id": "nsf-equipment-approval", "type": "prior_approval", "clause": "Clause 7.1", "threshold": 5000, "categories": ["Equipment"],
+         "description": "Clause 7.1: Equipment purchases above $5,000 require written prior approval."},
+        {"id": "nsf-unallowable", "type": "blocked_list", "clause": "Clause 8.1", "categories": ["Alcohol", "Entertainment"],
+         "description": "Clause 8.1: Alcohol and entertainment are unallowable costs."},
+        {"id": "nsf-foreign", "type": "jurisdiction", "clause": "Clause 9.1", "allowed_countries": ["US"], "categories": ["Contractor"],
+         "waivable_with_prior_approval": true,
+         "description": "Clause 9.1: Zero foreign contractor spend without 30-day prior written agency approval."}
+      ]
+    },
+    "EU-HORIZON-409": {
+      "name": "Horizon Europe EIC Transition",
+      "total_funding": 1200000,
+      "currency": "EUR",
+      "home_country": "EU",
+      "start_date": "2026-03-01",
+      "end_date": "2028-02-29",
+      "rules": [
+        "Article 3: Only budgeted cost categories are eligible (Personnel, Equipment, Travel, Contractor, Compute, Supplies).",
+        "Article 12: Subcontracting capped at 15% of total budget.",
+        "Article 6: Equipment deprecation must span 36 months minimum.",
+        "Article 7: Costs are eligible only between 2026-03-01 and 2028-02-29."
+      ],
+      "policies": [
+        {"id": "eu-categories", "type": "allowed_categories", "clause": "Article 3",
+         "categories": ["Personnel", "Equipment", "Travel", "Contractor", "Compute", "Supplies"],
+         "description": "Article 3: Only budgeted cost categories are eligible (Personnel, Equipment, Travel, Contractor, Compute, Supplies)."},
+        {"id": "eu-subcontract", "type": "category_cap", "clause": "Article 12", "category": "Contractor", "cap": 180000, "warn_at_pct": 80,
+         "description": "Article 12: Subcontracting capped at 15% of total budget."},
+        {"id": "eu-period", "type": "grant_period", "clause": "Article 7", "start": "2026-03-01", "end": "2028-02-29",
+         "description": "Article 7: Costs are eligible only between 2026-03-01 and 2028-02-29."}
+      ]
+    }
+  },
+  "team_members": [
+    {"id": "tm_1", "name": "Ronak Sarda", "role": "Lead Architect"},
+    {"id": "tm_2", "name": "Sarah Miller", "role": "Head of Operations"},
+    {"id": "tm_3", "name": "David Park", "role": "Senior ML Engineer"}
+  ],
+  "memories": [
+    {
+      "id": "mem_01",
+      "grant_id": "NSF-2026-881",
+      "timestamp": "2026-06-15T10:00:00Z",
+      "spender": "Sarah Miller",
+      "spender_id": "tm_2",
+      "category": "Travel",
+      "amount": 5400,
+      "vendor": "Lufthansa / Marriott Munich",
+      "location": "Munich, Germany",
+      "content": "Sarah Miller booked transatlantic flights and lodging for 2 devs attending NeurIPS Munich ($5,400 of $8,000 travel cap)."
+    }
+  ]
+}

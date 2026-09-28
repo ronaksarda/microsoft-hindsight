@@ -1,23 +1,166 @@
-"""Autonomous grant compliance decision engine powered by Groq and persistent memory."""
+"""Compliance orchestration: deterministic decision first, advisory LLM second.
+
+The deterministic engine (``app.engine``) owns the verdict. The LLM layer
+(``app.advisory``) only adds labelled advisory notes and cannot change status,
+findings or risk score.
+"""
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ValidationError
-
-from app import llm
+from app import advisory, engine
+from app.engine import Decision, Expense
+from app.rules import Rule, compile_text_rules, infer_category, normalize_category, parse_rules
 
 logger = logging.getLogger("grantanchor.compliance")
 
+Mode = Literal["with_memory", "without_memory"]
+
+WITHOUT_MEMORY_NOTE = (
+    "CAUTION: Evaluated without persistent grant memory. Past team expenditure, cumulative caps and "
+    "rolling windows were computed from this single transaction only."
+)
 
 
-class _LLMVerdict(BaseModel):
-    status: Literal["APPROVED", "CLAWBACK_RISK_DETECTED"]
-    violations: list[str]
-    cumulative_spend: str
-    remediation: str
+def grant_rules(grant: dict[str, Any]) -> list[Rule]:
+    """Structured policies if present, otherwise a conservative compile of the text clauses."""
+    if grant.get("policies"):
+        return parse_rules(grant["policies"])
+    return compile_text_rules(grant.get("rules", []), home_country=grant.get("home_country", "US"))
+
+
+def build_expense(
+    *,
+    grant_id: str,
+    spender_id: str,
+    spender_name: str,
+    vendor: str,
+    location: str,
+    amount: float,
+    purpose: str,
+    category: str | None = None,
+    expense_date: datetime | str | None = None,
+    prior_approval_ref: str | None = None,
+) -> Expense:
+    cat = normalize_category(category) if category else infer_category(f"{purpose} {vendor}")
+    return Expense(
+        grant_id=grant_id,
+        spender_id=spender_id,
+        spender_name=spender_name,
+        vendor=vendor,
+        location=location,
+        amount=float(amount),
+        category=cat,
+        expense_date=engine.parse_ts(expense_date),
+        purpose=purpose,
+        prior_approval_ref=prior_approval_ref or None,
+    )
+
+
+def decide(grant: dict[str, Any], expense: Expense, ledger: list[dict[str, Any]], mode: Mode) -> Decision:
+    history = ledger if mode == "with_memory" else []
+    return engine.evaluate(expense, grant_rules(grant), history)
+
+
+def render(decision: Decision, expense: Expense, mode: Mode, advice: dict[str, Any] | None) -> dict[str, Any]:
+    remediation = engine.remediation_text(decision)
+    if mode == "without_memory":
+        remediation = f"{WITHOUT_MEMORY_NOTE} {remediation}"
+    advice = advice or {"status": "skipped", "findings": [], "summary": "", "model": None}
+    return {
+        # Legacy fields (kept stable for existing clients)
+        "status": decision.status,
+        "violations": [f.message for f in decision.blocking],
+        "cumulative_spend": engine.cumulative_text(decision, expense.amount),
+        "remediation": remediation,
+        "mode": mode,
+        # Engine v2 fields
+        "warnings": [f.message for f in decision.warnings],
+        "findings": [f.model_dump() for f in decision.findings],
+        "risk_score": decision.risk_score,
+        "severity_counts": {
+            "blocking": len(decision.blocking),
+            "warning": len(decision.warnings),
+            "advisory": len(advice.get("findings", [])),
+        },
+        "requires_review": bool(decision.findings),
+        "category": decision.category,
+        "expense_date": expense.expense_date.isoformat(),
+        "jurisdiction": decision.jurisdiction,
+        "utilization": [u.model_dump() for u in decision.utilization],
+        "advisory": advice,
+        "engine_version": decision.engine_version,
+        "ledger_entries_considered": decision.ledger_entries_considered,
+    }
+
+
+async def assess(
+    *,
+    grant: dict[str, Any],
+    expense: Expense,
+    ledger: list[dict[str, Any]],
+    mode: Mode,
+    recalled: list[dict[str, Any]] | None = None,
+    use_advisory: bool = True,
+) -> tuple[Decision, dict[str, Any]]:
+    decision = decide(grant, expense, ledger, mode)
+    advice = None
+    if use_advisory:
+        advice = await advisory.review(grant=grant, expense=expense, decision=decision, recalled=recalled or [])
+    return decision, render(decision, expense, mode, advice)
+
+
+def diff(with_memory: dict[str, Any], without_memory: dict[str, Any]) -> dict[str, Any]:
+    """What persistent memory changed between the two evaluations."""
+
+    def keyed(ev: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+        return {(f["rule_id"], f["code"]): f for f in ev["findings"]}
+
+    w, wo = keyed(with_memory), keyed(without_memory)
+    caught = [w[k] for k in w if k not in wo]
+    only_without = [wo[k] for k in wo if k not in w]
+    escalated = [
+        {"rule_id": k[0], "code": k[1], "without": wo[k]["severity"], "with": w[k]["severity"]}
+        for k in w
+        if k in wo and w[k]["severity"] != wo[k]["severity"]
+    ]
+    util_w = {u["rule_id"]: u for u in with_memory["utilization"]}
+    util_delta = [
+        {
+            "rule_id": rid,
+            "clause": u["clause"],
+            "label": u["label"],
+            "cap": u["cap"],
+            "without_memory_projected": wou["projected"],
+            "with_memory_projected": u["projected"],
+            "prior_spend_seen_only_with_memory": round(u["projected"] - wou["projected"], 2),
+        }
+        for wou in without_memory["utilization"]
+        for rid, u in util_w.items()
+        if rid == wou["rule_id"] and u["projected"] != wou["projected"]
+    ]
+    return {
+        "status_changed": with_memory["status"] != without_memory["status"],
+        "status": {"without_memory": without_memory["status"], "with_memory": with_memory["status"]},
+        "risk_delta": with_memory["risk_score"] - without_memory["risk_score"],
+        "caught_by_memory": caught,
+        "only_without_memory": only_without,
+        "severity_changes": escalated,
+        "utilization_delta": util_delta,
+        "summary": (
+            f"Memory surfaced {len(caught)} additional finding(s)"
+            + (f" and changed the verdict to {with_memory['status']}" if with_memory["status"] != without_memory["status"] else "")
+            + "."
+        ),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Legacy entry point (signature kept for existing callers)
+# --------------------------------------------------------------------------- #
 
 
 async def evaluate_compliance(
@@ -32,152 +175,26 @@ async def evaluate_compliance(
     purpose: str,
     recalled_memories: list[dict[str, Any]],
     mode: str = "with_memory",
+    *,
+    policies: list[dict[str, Any]] | None = None,
+    category: str | None = None,
+    expense_date: datetime | str | None = None,
+    prior_approval_ref: str | None = None,
 ) -> dict[str, Any]:
-    """Evaluate spending proposal against grant stipulations and past memory."""
-
-    # 1. Blind / Without Memory Mode
-    if mode == "without_memory":
-        return {
-            "status": "APPROVED",
-            "violations": [],
-            "cumulative_spend": f"${amount:,.2f} (Single transaction - blind to historical team ledger)",
-            "remediation": "CAUTION: Evaluated without persistent grant memory. Past team expenditure caps and cross-period milestones were not checked.",
-            "mode": "without_memory",
-        }
-
-    # 2. Build context for Groq
-    rules_text = "\n".join(f"- {r}" for r in grant_rules) if grant_rules else "No specific rules registered."
-    
-    # Calculate category spend totals from memory
-    travel_prior = sum(
-        m.get("amount", 0.0)
-        for m in recalled_memories
-        if m.get("category", "").lower() == "travel" or "travel" in m.get("content", "").lower() or "flight" in m.get("content", "").lower()
-    )
-
-    history_text = "\n".join(
-        f"- [{m.get('timestamp', 'N/A')}] {m.get('spender', 'Team')}: {m.get('vendor', 'N/A')} - ${m.get('amount', 0.0):,.2f} ({m.get('content', '')})"
-        for m in recalled_memories
-    ) if recalled_memories else "No historical transactions found in memory."
-
-    system_prompt = (
-        "You are GrantAnchor, an autonomous grant compliance engine for deep-tech research teams.\n"
-        "Analyze the proposed expense against the grant rules and historical ledger.\n"
-        "You MUST respond ONLY with valid JSON with keys:\n"
-        '- "status": either "APPROVED" or "CLAWBACK_RISK_DETECTED"\n'
-        '- "violations": array of exact strings detailing which grant clause was violated and why\n'
-        '- "cumulative_spend": string detailing updated total spent in that category and impact on cap\n'
-        '- "remediation": concrete actionable advice to rectify the compliance breach or maintain compliance\n'
-        "Pay special attention to:\n"
-        "1. Foreign contractors (e.g. Oslo, Norway, international entities) violating zero foreign contractor rules.\n"
-        "2. Cumulative travel caps where prior spending by ANY team member combined with this proposed spend exceeds the cap.\n"
-        "3. Subcontracting percentages or equipment rules."
-    )
-
-    user_prompt = (
-        f"Active Grant: {grant_id} ({grant_name})\n"
-        f"Grant Rules:\n{rules_text}\n\n"
-        f"Team Member: {spender_name} ({spender_role})\n"
-        f"Proposed Expense:\n"
-        f"- Vendor: {vendor}\n"
-        f"- Location: {location}\n"
-        f"- Amount: ${amount:,.2f}\n"
-        f"- Purpose: {purpose}\n\n"
-        f"Historical Memory Ledger:\n{history_text}\n\n"
-        f"Prior Travel Spend in Ledger: ${travel_prior:,.2f}\n"
-        "Evaluate this transaction strictly."
-    )
-
-    client = llm.get_client()
-    if client.enabled:
-        try:
-            out = await client.complete_json(system_prompt, user_prompt)
-            parsed = _LLMVerdict.model_validate(out.data)
-            result = parsed.model_dump()
-            result["mode"] = "with_memory"
-            return result
-        except (llm.LLMError, ValidationError) as exc:
-            logger.warning("Groq result unusable (%s); using deterministic compliance engine", exc)
-
-    # Deterministic compliance fallback ensuring 100% reliable evaluation
-    return _deterministic_evaluation(
+    grant = {"id": grant_id, "name": grant_name, "rules": grant_rules, "policies": policies or []}
+    expense = build_expense(
         grant_id=grant_id,
-        grant_rules=grant_rules,
+        spender_id=spender_name,
         spender_name=spender_name,
         vendor=vendor,
         location=location,
         amount=amount,
         purpose=purpose,
-        recalled_memories=recalled_memories,
+        category=category,
+        expense_date=expense_date,
+        prior_approval_ref=prior_approval_ref,
     )
-
-
-def _deterministic_evaluation(
-    grant_id: str,
-    grant_rules: list[str],
-    spender_name: str,
-    vendor: str,
-    location: str,
-    amount: float,
-    purpose: str,
-    recalled_memories: list[dict[str, Any]],
-) -> dict[str, Any]:
-    """Deterministic rule evaluator when Groq is unreachable or key is unset."""
-    combined = f"{vendor} {location} {purpose}".lower()
-
-    # Rule 1: Foreign contractor check
-    is_foreign_vendor = any(loc in combined for loc in ["oslo", "norway", "nordic", "foreign", "international", "europe", "uk"])
-    has_foreign_rule = any("foreign contractor" in r.lower() for r in grant_rules)
-    if is_foreign_vendor and has_foreign_rule:
-        return {
-            "status": "CLAWBACK_RISK_DETECTED",
-            "violations": [
-                "Clause 9.1: Zero foreign contractor spend without 30-day prior written agency approval. "
-                f"Engagement with foreign entity '{vendor}' in '{location}' creates imminent clawback exposure."
-            ],
-            "cumulative_spend": f"${amount:,.2f} in foreign contractor engagements (Authorized: $0.00 without waiver)",
-            "remediation": (
-                "File Agency Prior-Approval Waiver (Form NSF-PA-9.1) with 30-day notice. "
-                "Do not disburse grant funds until contracting officer issues written consent."
-            ),
-            "mode": "with_memory",
-        }
-
-    # Rule 2: Travel cap check
-    is_travel = any(kw in combined for kw in ["flight", "travel", "airline", "lodging", "hotel", "conference", "tokyo", "munich"])
-    has_travel_cap = any("travel" in r.lower() and "$8,000" in r for r in grant_rules)
-    if is_travel and has_travel_cap:
-        # Sum past travel across all team members
-        prior_travel = sum(
-            m.get("amount", 0.0)
-            for m in recalled_memories
-            if m.get("category", "").lower() == "travel"
-            or any(kw in m.get("content", "").lower() for kw in ["travel", "flight", "lodging", "munich", "tokyo"])
-        )
-        projected_travel = prior_travel + amount
-        if projected_travel > 8000:
-            excess = projected_travel - 8000
-            prior_spenders = ", ".join(set(m.get("spender", "Team") for m in recalled_memories if m.get("category", "").lower() == "travel")) or "Sarah Miller"
-            return {
-                "status": "CLAWBACK_RISK_DETECTED",
-                "violations": [
-                    f"Clause 4.2: Cumulative travel expenses capped at $8,000 total across all team members. "
-                    f"Prior spend ({prior_spenders}: ${prior_travel:,.2f}) plus proposed spend by {spender_name} (${amount:,.2f}) "
-                    f"equals ${projected_travel:,.2f} (${excess:,.2f} over authorized ceiling)."
-                ],
-                "cumulative_spend": f"${projected_travel:,.2f} of $8,000.00 travel ceiling (${excess:,.2f} over limit)",
-                "remediation": (
-                    f"Reject booking or submit formal budget re-allocation request to transfer ${excess:,.2f} "
-                    "from non-personnel direct costs into Travel Category prior to ticket issuance."
-                ),
-                "mode": "with_memory",
-            }
-
-    # Standard allowable spend
-    return {
-        "status": "APPROVED",
-        "violations": [],
-        "cumulative_spend": f"${amount:,.2f} authorized under direct technical operations",
-        "remediation": "Compliant with all active grant terms and milestone stipulations. Proceed with standard procurement.",
-        "mode": "with_memory",
-    }
+    ledger = [m for m in recalled_memories if not m.get("grant_id") or m.get("grant_id") == grant_id]
+    m: Mode = "without_memory" if mode == "without_memory" else "with_memory"
+    _, result = await assess(grant=grant, expense=expense, ledger=ledger, mode=m, recalled=recalled_memories)
+    return result
