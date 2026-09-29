@@ -141,6 +141,19 @@ def _write_all(data: dict[str, Any]) -> None:
                     "INSERT INTO memories(id, grant_id, ts, data) VALUES(?, ?, ?, ?)",
                     (m["id"], m.get("grant_id", ""), m.get("timestamp", ""), json.dumps(m)),
                 )
+            if "audits" in data:
+                c.execute("DELETE FROM audits")
+            for a in data.get("audits", []):
+                c.execute(
+                    "INSERT INTO audits(id, grant_id, created_at, data) VALUES(?, ?, ?, ?)",
+                    (a["id"], a["grant_id"], a["created_at"], json.dumps(a)),
+                )
+            for e in data.get("events", []):
+                e.setdefault("sync_status", "pending")
+                c.execute(
+                    "INSERT INTO memory_events(id, grant_id, kind, created_at, data) VALUES(?, ?, ?, ?, ?)",
+                    (e["id"], e["grant_id"], e["kind"], e["created_at"], json.dumps(e)),
+                )
             c.execute(
                 "INSERT OR REPLACE INTO meta(key, value) VALUES('active_grant_id', ?)",
                 (data.get("active_grant_id", ""),),

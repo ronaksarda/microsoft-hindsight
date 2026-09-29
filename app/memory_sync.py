@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
+import random
 import re
+import time
 from typing import Any
 
 from app import hindsight, local_store
+from app.config import settings
 
 logger = logging.getLogger("grantanchor.memory_sync")
 
@@ -52,28 +55,60 @@ async def sync_record(record: dict[str, Any]) -> str:
         await client.retain([hindsight.build_memory_item(record)], async_=True)
     except hindsight.HindsightError as exc:
         logger.warning("hindsight retain failed", extra={"memory_id": record["id"], "error": str(exc)})
-        local_store.update_memory(record["id"], {"sync_status": "failed", "sync_error": str(exc)[:300]})
+        local_store.update_memory(record["id"], {"sync_status": "failed", "sync_error": str(exc)[:300],
+                                                 **next_attempt(record.get("sync_attempts", 0), exc.retryable)})
         return "retained_local"
-    local_store.update_memory(record["id"], {"sync_status": "synced", "sync_error": None})
+    local_store.update_memory(record["id"], {"sync_status": "synced", "sync_error": None, "sync_attempts": 0,
+                                             "next_attempt_at": None})
     return "retained_remote"
+
+
+def next_attempt(attempts: int, retryable: bool = True) -> dict[str, object]:
+    """Outbox bookkeeping: exponential backoff with jitter; stop after ``outbox_max_attempts``."""
+    attempts += 1
+    if not retryable or attempts >= settings.outbox_max_attempts:
+        return {"sync_attempts": attempts, "next_attempt_at": None, "sync_gave_up": True}
+    delay = min(settings.outbox_backoff_max_seconds, settings.outbox_backoff_base_seconds * 2 ** (attempts - 1))
+    return {"sync_attempts": attempts, "next_attempt_at": time.time() + random.uniform(delay / 2, delay),
+            "sync_gave_up": False}
+
+
+def due(record: dict[str, object]) -> bool:
+    if record.get("sync_status") == "synced" or record.get("sync_gave_up"):
+        return False
+    nxt = record.get("next_attempt_at")
+    return not nxt or float(nxt) <= time.time()  # type: ignore[arg-type]
 
 
 async def sync_pending(grant_id: str | None = None, limit: int = 50) -> dict[str, int]:
     """Push every ledger entry that is not yet in Hindsight. Safe to repeat (document_id upserts)."""
     store = local_store.load_store()
-    todo = [
-        m
-        for m in store["memories"]
-        if m.get("sync_status") != "synced" and (not grant_id or m.get("grant_id") == grant_id)
-    ][:limit]
+    todo = [m for m in store["memories"] if due(m) and (not grant_id or m.get("grant_id") == grant_id)][:limit]
     counts = {"synced": 0, "failed": 0, "local_only": 0}
-    for m in todo:
-        st = await sync_record(m)
-        final = (local_store.get_memory(m["id"]) or {}).get("sync_status", "failed")
-        counts[final if final in counts else "failed"] += 1
-        if st == "retained_local" and final == "failed":
-            break  # remote is down; stop hammering it
+    client = hindsight.get_client()
+    if not client.enabled:
+        for m in todo:
+            await sync_record(m)
+            counts["local_only"] += 1
+        return counts
+    for i in range(0, len(todo), BATCH):
+        chunk = todo[i : i + BATCH]
+        try:
+            await client.retain([hindsight.build_memory_item(m) for m in chunk], async_=True)
+        except hindsight.HindsightError as exc:
+            for m in todo[i:]:
+                local_store.update_memory(m["id"], {"sync_status": "failed", "sync_error": str(exc)[:300],
+                                                    **next_attempt(m.get("sync_attempts", 0), exc.retryable)})
+            counts["failed"] += len(todo) - i
+            break  # remote is down; the outbox will come back later
+        for m in chunk:
+            local_store.update_memory(m["id"], {"sync_status": "synced", "sync_error": None, "sync_attempts": 0,
+                                                "next_attempt_at": None})
+        counts["synced"] += len(chunk)
     return counts
+
+
+BATCH = 25  # items per Hindsight retain call
 
 
 async def forget(memory_id: str) -> None:

@@ -105,6 +105,7 @@ class ReflectRequest(BaseModel):
     max_tokens: int = Field(default=2048, gt=0)
     tags: list[str] | None = None
     tags_match: Literal["any", "all", "any_strict", "all_strict", "exact"] = "any"
+    tag_groups: list[dict[str, Any]] | None = None
     response_schema: dict[str, Any] | None = None
 
 
@@ -270,11 +271,16 @@ class HindsightClient:
             raise HindsightError(f"unexpected recall response: {exc}", retryable=False) from exc
 
     async def reflect(
-        self, query: str, *, tags: list[str] | None = None, response_schema: dict[str, Any] | None = None
+        self,
+        query: str,
+        *,
+        tags: list[str] | None = None,
+        tag_groups: list[dict[str, Any]] | None = None,
+        response_schema: dict[str, Any] | None = None,
     ) -> ReflectResponse:
         """Ask Hindsight to reason over the bank's memories (``POST .../reflect``). Slower than recall (~10 s)."""
         req = ReflectRequest(query=query, tags=tags, tags_match="any_strict" if tags else "any",
-                             response_schema=response_schema)
+                             tag_groups=tag_groups, response_schema=response_schema)
         resp = await self._request("POST", self._bank_path("/reflect"), json=req.model_dump(exclude_none=True),
                                    trip_on_fail=False, timeout=max(self.timeout, 60.0))
         try:

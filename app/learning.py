@@ -75,25 +75,7 @@ async def remember(kind: Kind, grant_id: str, text: str, *, vendor: str = "", sp
         "vendor": vendor, "vendor_key": normalize_vendor(vendor), "spender_id": spender_id, "spender": spender,
         "created_at": clock.now_iso(), "sync_status": "pending", **meta,
     }
-    client = hindsight.get_client()
-    if client.enabled:
-        item = hindsight.MemoryItem(
-            content=text,
-            timestamp=event["created_at"],
-            context=f"grant-experience:{grant_id}",
-            metadata={k: str(v) for k, v in {**meta, "kind": kind, "event_id": event["id"], "vendor": vendor,
-                                              "spender": spender, "spender_id": spender_id}.items() if v is not None},
-            document_id=event["id"],
-            tags=_tags(grant_id, kind, vendor, spender_id),
-        )
-        try:
-            await client.retain([item], async_=True)
-            event["sync_status"] = "synced"
-        except hindsight.HindsightError as exc:
-            event["sync_status"] = "failed"
-            logger.warning("could not retain %s event: %s", kind, exc)
-    else:
-        event["sync_status"] = "local_only"
+    await _push(event)
     local_store.conn().execute(
         "INSERT INTO memory_events(id, grant_id, kind, created_at, data) VALUES(?, ?, ?, ?, ?)",
         (event["id"], grant_id, kind, event["created_at"], json.dumps(event)),
@@ -102,9 +84,96 @@ async def remember(kind: Kind, grant_id: str, text: str, *, vendor: str = "", sp
     return event
 
 
+def _item(event: dict[str, Any]) -> hindsight.MemoryItem:
+    meta = {k: v for k, v in event.items() if k not in ("text", "created_at", "sync_status", "vendor_key", "grant_id",
+                                                         "id", "sync_attempts", "next_attempt_at", "sync_gave_up")}
+    return hindsight.MemoryItem(
+        content=event["text"],
+        timestamp=event["created_at"],
+        context=f"grant-experience:{event['grant_id']}",
+        metadata={k: str(v) for k, v in {**meta, "event_id": event["id"]}.items() if v is not None},
+        document_id=event["id"],
+        tags=_tags(event["grant_id"], event["kind"], event.get("vendor", ""), event.get("spender_id", "")),
+    )
+
+
+async def _push(event: dict[str, Any]) -> None:
+    from app.memory_sync import next_attempt
+
+    client = hindsight.get_client()
+    if not client.enabled:
+        event["sync_status"] = "local_only"
+        return
+    try:
+        await client.retain([_item(event)], async_=True)
+        event.update(sync_status="synced", sync_attempts=0, next_attempt_at=None)
+    except hindsight.HindsightError as exc:
+        event["sync_status"] = "failed"
+        event.update(next_attempt(int(event.get("sync_attempts", 0)), exc.retryable))
+        logger.warning("could not retain %s event: %s", event["kind"], exc)
+
+
+async def sync_pending_events(limit: int = 100) -> dict[str, int]:
+    """Outbox pass for experiences that haven't reached Hindsight yet."""
+    from app.memory_sync import due
+
+    rows = [json.loads(r["data"]) for r in local_store.conn().execute("SELECT data FROM memory_events")]
+    counts = {"synced": 0, "failed": 0}
+    if not hindsight.get_client().enabled:
+        return counts
+    from app.memory_sync import BATCH, next_attempt
+
+    todo = [e for e in rows if due(e)][:limit]
+    for i in range(0, len(todo), BATCH):
+        chunk = todo[i : i + BATCH]
+        try:
+            await hindsight.get_client().retain([_item(e) for e in chunk], async_=True)
+            for e in chunk:
+                e.update(sync_status="synced", sync_attempts=0, next_attempt_at=None)
+            counts["synced"] += len(chunk)
+        except hindsight.HindsightError as exc:
+            for e in todo[i:]:
+                e["sync_status"] = "failed"
+                e.update(next_attempt(int(e.get("sync_attempts", 0)), exc.retryable))
+            counts["failed"] += len(todo) - i
+            chunk = todo[i:]
+        for e in chunk:
+            local_store.conn().execute("UPDATE memory_events SET data=? WHERE id=?", (json.dumps(e), e["id"]))
+        if counts["failed"]:
+            break
+    return counts
+
+
 def events(grant_id: str) -> list[dict[str, Any]]:
     return [json.loads(r["data"]) for r in local_store.conn().execute(
         "SELECT data FROM memory_events WHERE grant_id=? ORDER BY created_at DESC", (grant_id,))]
+
+
+def impact_of(evaluation: dict[str, Any], approval_ref: str | None) -> dict[str, Any]:
+    """What memory contributed to one check, stored in history so the impact can be counted."""
+    mem = [f for f in evaluation.get("findings", []) if f.get("source") == "memory"]
+    hints = (evaluation.get("memory") or {}).get("hints") or {}
+    sug = (hints.get("suggested_approval") or {}).get("ref") or ""
+    extra = sum(f["details"].get("estimated_payment", 0) - f["details"].get("checked_payment", 0)
+                for f in mem if f["code"] == "LEARNED_OVERRUN")
+    return {
+        "codes": [f["code"] for f in mem],
+        "changed_answer": bool(evaluation.get("status_changed_by_memory")),
+        "approval_reused": bool(sug and approval_ref and approval_ref.strip().lower() == sug.lower()),
+        "overrun_flagged": round(extra, 2),
+    }
+
+
+def impact(grant_id: str) -> dict[str, Any]:
+    """Totals across the check history: how often memory changed or improved an answer."""
+    rows = [a.get("memory_impact") or {} for a in local_store.list_audits(grant_id, 5000)]
+    return {
+        "checks_helped": sum(bool(r.get("codes") or r.get("approval_reused")) for r in rows),
+        "answers_changed": sum(bool(r.get("changed_answer")) for r in rows),
+        "approvals_reused": sum(bool(r.get("approval_reused")) for r in rows),
+        "overrun_flagged": round(sum(float(r.get("overrun_flagged") or 0) for r in rows), 2),
+        "checks": len(rows),
+    }
 
 
 def stats(grant_id: str) -> dict[str, Any]:
@@ -113,7 +182,18 @@ def stats(grant_id: str) -> dict[str, Any]:
     n = len(evs) + len(ledger)
     level = ("Just started" if n < 3 else "Getting to know this grant" if n < 10
              else "Knows your patterns" if n < 25 else "Knows this grant well")
-    return {"events": len(evs), "expenses": len(ledger), "total": n, "level": level,
+    months: dict[str, list[int]] = {}
+    for e in evs:
+        months.setdefault(e["created_at"][:7], [0, 0])[0] += 1
+    for m in ledger:
+        months.setdefault(str(m.get("timestamp", ""))[:7], [0, 0])[1] += 1
+    run = 0
+    timeline = []
+    for mo in sorted(k for k in months if k):
+        run += sum(months[mo])
+        timeline.append({"month": mo, "experiences": months[mo][0], "expenses": months[mo][1], "total": run})
+    return {"events": len(evs), "expenses": len(ledger), "total": n, "level": level, "timeline": timeline,
+            "impact": impact(grant_id),
             "by_kind": {k: sum(e["kind"] == k for e in evs) for k in ("decision", "approval", "overrun")},
             "in_hindsight": sum(e.get("sync_status") == "synced" for e in evs)
             + sum(m.get("sync_status") == "synced" for m in ledger)}
@@ -203,8 +283,11 @@ async def lessons(grant_id: str, grant_name: str, refresh: bool = False) -> dict
             f"What has this team learned so far about spending on the grant '{grant_name}'? Give at most 4 short, "
             "practical lessons for the next person about to spend money: limits that keep getting close, people "
             "whose final invoices run over, vendors that needed funder approval and the reference used. "
-            "Only use what is in memory.",
-            tags=[f"grant:{grant_id}"], response_schema=LESSONS_SCHEMA,
+            "Name the people, vendors and approval references involved. Only use what is in memory.",
+            # Only this grant's experiences (stops, approvals, overruns), not every expense.
+            tag_groups=[{"tags": [f"grant:{grant_id}"], "match": "all_strict"},
+                        {"tags": ["kind:decision", "kind:approval", "kind:overrun"], "match": "any_strict"}],
+            response_schema=LESSONS_SCHEMA,
         )
     except hindsight.HindsightError as exc:
         return {"status": "unavailable", "error": str(exc)[:200], "lessons": [], "stats": st}
@@ -216,3 +299,94 @@ async def lessons(grant_id: str, grant_name: str, refresh: bool = False) -> dict
            "stats": st, "generated_at": clock.now_iso()}
     _LESSONS_CACHE[grant_id] = (time.time(), st["total"], out)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Memory in the verdict
+# --------------------------------------------------------------------------- #
+
+
+def apply_memory(evaluation: dict[str, Any], grant_id: str, *, vendor: str, spender_id: str,
+                 has_approval_ref: bool, currency: str = "USD") -> dict[str, Any]:
+    """Add memory findings to a with-memory evaluation.
+
+    Memory can raise caution (APPROVED -> APPROVED_WITH_WARNINGS) but never blocks or approves: the rules
+    still own the hard decision. Findings are tagged ``source: memory`` so the UI and the with/without-memory
+    diff can show exactly what experience changed.
+    """
+    evs = events(grant_id)
+    hints = _hints(evs, vendor, spender_id)
+    sym = {"USD": "$", "EUR": "€", "GBP": "£", "INR": "₹"}.get(currency.upper(), currency.upper() + " ")
+    found: list[dict[str, Any]] = []
+    o = hints["overrun"]
+    if o:
+        factor = 1 + o["avg_pct"] / 100
+        for u in evaluation.get("utilization", []):
+            this = u["projected"] - u["prior"]
+            est = u["prior"] + this * factor
+            pct = est / u["cap"] * 100
+            if u["projected"] > u["cap"]:
+                continue  # the rules already stop it
+            if est > u["cap"] or (pct >= u["warn_at_pct"] and u["pct_after"] < u["warn_at_pct"]):
+                breaks = est > u["cap"]
+                found.append({
+                    "rule_id": u["rule_id"], "rule_type": "memory", "clause": "Memory", "code": "LEARNED_OVERRUN",
+                    "severity": "warning", "source": "memory", "score": 62 if breaks else 45,
+                    "message": (f"Memory: {o['spender']}'s final invoices have come in {o['avg_pct']:g}% above the "
+                                f"checked amount ({o['times']} time{'s' if o['times'] != 1 else ''}). At that rate this "
+                                f"is really about {sym}{est - u['prior']:,.0f}, taking {u['label']} to {pct:.0f}% of the "
+                                f"{sym}{u['cap']:,.0f} limit" + (", over it." if breaks else ".")),
+                    "details": {"estimated_total": round(est, 2), "estimated_payment": round(this * factor, 2),
+                                "checked_payment": round(this, 2), "cap": u["cap"], "avg_overrun_pct": o["avg_pct"],
+                                "currency": currency},
+                })
+                break
+    a = hints["suggested_approval"]
+    blocked_by_approval = any(f["code"] in ("JURISDICTION_BLOCKED", "PRIOR_APPROVAL_REQUIRED")
+                              for f in evaluation.get("findings", []))
+    if a and blocked_by_approval and not has_approval_ref:
+        found.append({
+            "rule_id": "memory-approval", "rule_type": "memory", "clause": "Memory", "code": "APPROVAL_ON_FILE",
+            "severity": "warning", "source": "memory", "score": 20,
+            "message": f"Memory: {a['vendor']} was paid under funder approval {a['ref']} before. If it still "
+                       "covers this work, add it and this payment can go ahead.",
+            "details": {"approval_ref": a["ref"]},
+        })
+    if not found:
+        evaluation["memory"] = {"hints": hints, "findings": 0}
+        return evaluation
+    evaluation["findings"] = evaluation.get("findings", []) + found
+    evaluation["warnings"] = evaluation.get("warnings", []) + [f["message"] for f in found]
+    if evaluation["status"] == "APPROVED" and any(f["code"] == "LEARNED_OVERRUN" for f in found):
+        evaluation["status"] = "APPROVED_WITH_WARNINGS"
+        evaluation["status_changed_by_memory"] = True
+    evaluation["risk_score"] = max(evaluation["risk_score"], max(f["score"] for f in found))
+    evaluation["severity_counts"]["warning"] = evaluation["severity_counts"].get("warning", 0) + len(found)
+    evaluation["memory"] = {"hints": hints, "findings": len(found)}
+    return evaluation
+
+
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}, "highlights": {"type": "array", "items": {"type": "string"}}},
+    "required": ["answer"],
+}
+
+
+async def answer(grant_id: str, question: str) -> dict[str, Any]:
+    """A written answer to a question about this grant, from Hindsight reflect over everything it remembers."""
+    client = hindsight.get_client()
+    if not client.enabled:
+        return {"status": "disabled", "answer": "", "highlights": []}
+    try:
+        r = await client.reflect(
+            f"{question}\n\nAnswer in two to four plain sentences for a busy founder. Use exact amounts, dates, "
+            "people and vendors from memory. If memory doesn't say, answer that you don't know.",
+            tags=[f"grant:{grant_id}"], response_schema=ANSWER_SCHEMA,
+        )
+    except hindsight.HindsightError as exc:
+        return {"status": "unavailable", "error": str(exc)[:200], "answer": "", "highlights": []}
+    out = r.structured_output or {}
+    text = str(out.get("answer") or "").strip() or r.text.strip()
+    return {"status": "ok" if text else "invalid", "answer": text[:1500],
+            "highlights": [str(h)[:200] for h in (out.get("highlights") or [])[:4] if str(h).strip()]}

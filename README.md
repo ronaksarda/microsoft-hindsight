@@ -4,7 +4,19 @@ Most grant money comes with rules. Travel is capped at $6,000. Equipment over $5
 
 Nobody breaks these on purpose. The problem is memory. The rules were signed in January, three different people spend money over the next year, and by September nobody remembers that travel was capped across the whole team. The funder notices at audit time and asks for the money back.
 
-GrantAnchor checks every expense against the grant's rules and against everything the team has already spent, before the money goes out.
+GrantAnchor checks every expense against the grant's rules and against everything the team has already spent, before the money goes out. And it learns: every stopped payment, funder approval and invoice that came in higher than expected goes into [Hindsight](https://hindsight.vectorize.io) memory, so month nine's answers are sharper than day one's.
+
+![Memory changing the answer](docs/screenshots/demo_desktop_2_memory_changed.png)
+
+## Where memory makes the difference
+
+| Rules alone | With Hindsight memory |
+|---|---|
+| "$600 flight for Maya. Fits the travel limit. Good to go." | "Maya's last two final invoices came in about 50% higher. This will really be about $902, which takes travel to 84% of the $2,500 limit. Be careful." |
+| "Studio Nord is a foreign contractor. Blocked." | "Studio Nord was paid under funder approval HLRF-PA-12 in April. **Use HLRF-PA-12**?" One click. |
+| The same answer on day 1 and day 270. | A learning curve on the Overview, and lessons Hindsight writes with `reflect`. |
+
+Memory can make an answer more cautious and can hand you what you need, like an approval reference. It can never block or approve on its own; the grant's rules decide. The full explanation of what is stored, how it's recalled and how it stays correct when Hindsight is down is in **[docs/HINDSIGHT.md](docs/HINDSIGHT.md)**.
 
 ## What it does
 
@@ -16,10 +28,7 @@ GrantAnchor checks every expense against the grant's rules and against everythin
 
   Each comes with the reason in plain words and a 0 to 100 risk score.
 - **Remembers.** Every recorded expense is kept, so a $1,000 flight gets flagged when someone else already spent $2,000 on travel this quarter. When history changes the answer, it shows you which past expenses did it.
-- **Gets better the more you use it.** Every stopped payment, funder approval and invoice that came in higher than checked is saved to Hindsight memory. The next check draws on it:
-  - For a vendor it has seen before: "Last time Studio Nord was paid under approval HLRF-PA-12. Use it?" (one click)
-  - For a person whose final invoices usually come in higher: "Maya's invoices usually come in 68% higher. At that rate this breaks the travel limit."
-  - A "What we've learned" card on Overview shows lessons Hindsight writes from everything it remembers, plus a meter that fills up as it learns.
+- **Gets better the more you use it.** Stopped payments, funder approvals and overruns are saved to Hindsight and change the next answer (see the table above). The Memory tab lists everything it has learned.
 - **Handles other currencies.** Pay a vendor in euros or rupees and it's converted to the grant's currency at the European Central Bank rate for that day. You can use your own rate instead. Both amounts are kept.
 - **Keeps a clean record.** Expenses can be edited or removed. Every change needs a reason and is kept in History. An edit that would break a rule needs your confirmation.
 - **Gives a second opinion.** An AI model reads the clauses that can't be checked by rules, like reporting deadlines, and adds notes. It can never change the answer.
@@ -32,7 +41,19 @@ cp .env.example .env
 uvicorn app.main:app --port 8000
 ```
 
-Open http://localhost:8000, create an account, create or upload a grant agreement, and start checking expenses. Or run the standalone CLI demonstration:
+Open http://localhost:8000, create an account, upload a grant agreement (try `examples/sample_award_letter.docx`), and start checking expenses.
+
+**See it nine months in.** The demo workspace is a four-person startup halfway through a made-up $150,000 grant: 31 expenses and 7 remembered experiences. With `HINDSIGHT_API_KEY` set, all of it syncs to Hindsight on startup.
+
+```powershell
+$env:SEED_PATH="examples/demo_workspace.json"; $env:DATA_DIR="data/demo"; uvicorn app.main:app --port 8000
+```
+
+```bash
+SEED_PATH=examples/demo_workspace.json DATA_DIR=data/demo uvicorn app.main:app --port 8000
+```
+
+Then follow [examples/DEMO_SCRIPT.md](examples/DEMO_SCRIPT.md). A command-line version:
 
 ```bash
 python run_demo.py
@@ -101,6 +122,39 @@ The main calls:
 | `GET /api/ledger.csv?grant_id=` | Export |
 
 The original prototype endpoints still work: `/api/state`, `/api/switch-grant`, `/api/audit-expense` and `/api/reset-seed`.
+## Who it's for, and how it gets adopted
+
+- **Who:** startups, university labs and nonprofits running one to a few grants (SBIR/STTR, NSF, foundation awards) without a grants office. The person using it is the founder or ops lead who approves spending.
+- **How it starts:** upload the award letter, check the next expense. No integration needed on day one.
+- **What comes next:**
+  - a Slack or email "check before you pay" command
+  - import from Brex or Ramp card feeds, so expenses arrive automatically
+  - an export formatted for the funder's financial report
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m playwright install chromium
+python -m pytest
+ruff check app tests scripts run_demo.py
+```
+
+102 tests. They cover:
+- every rule type and its edge cases (exactly at the cap, rolling-window boundaries, backdated entries, ambiguous locations)
+- the Hindsight and Groq clients (timeouts, 429s, bad JSON)
+- memory findings and the outbox
+- currency conversion
+- uploads and edits
+- five browser runs on desktop and mobile, including the demo workspace
+
+## Docs
+
+- [docs/HINDSIGHT.md](docs/HINDSIGHT.md): how memory is used
+- [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md): every module and function, and where you could reuse it
+- [examples/DEMO_SCRIPT.md](examples/DEMO_SCRIPT.md): a walk-through with verified answers
+- [docs/launch/](docs/launch/): demo video script, LinkedIn and Reddit posts
+
 ## Known limits
 
 - **One shared workspace.** Everyone who signs in sees every grant. Roles are recorded but don't restrict anything yet.
@@ -113,8 +167,12 @@ The original prototype endpoints still work: `/api/state`, `/api/switch-grant`, 
 ## Project layout
 
 ```
-app/        backend (FastAPI): engine, local store, FX, ingestion, auth
+app/        backend (FastAPI): rules engine, memory (learning.py, memory_sync.py, hindsight.py), store, FX, import, auth
 static/     the web app (index.html) and sign-in page
+examples/   sample award letter, demo workspace, demo script
+docs/       Hindsight explanation, architecture guide, screenshots, launch posts
+scripts/    maintenance scripts
+tests/      pytest suite (unit, API, browser)
 run_demo.py standalone CLI simulation
 ```
 

@@ -13,6 +13,10 @@ data/
 *.db
 *.sqlite3
 *.sqlite3-*
+data/*.tmp
+artifacts/
+docs/
+.venv
 
 # OS & Editor junk
 .DS_Store
@@ -27,9 +31,19 @@ playwright-report/
 .cache/
 pyproject.toml
 requirements-dev.txt
+.dockerignore
+Dockerfile
+.github/
 
-# Local workspace docs, tests, examples, scripts
+# Local workspace docs, tests, examples, scripts, and video assets
 docs/
 examples/
 scripts/
 tests/
+*.mp4
+
+# Submission & Launch content files
+LINKEDIN_ARTICLE.md
+REDDIT_POST.md
+LINKEDIN_POST.md
+VIDEO_METADATA.md

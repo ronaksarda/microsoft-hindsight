@@ -79,7 +79,7 @@ In GrantAnchor, Hindsight functions as an episodic memory bank. Every recorded t
 
 In a financial system, your semantic memory service must never be a single point of failure. If the memory API has high latency or network partitions occur, the primary spending ledger must remain fast and operational. 
 
-We implemented a per-bank circuit breaker and an asynchronous outbox in [`app/hindsight.py`](file:///c:/Users/rocky/Documents/Codex/2026-09-27/files-pasted-by-the-user-markdown/app/hindsight.py):
+We implemented a per-bank circuit breaker and an asynchronous outbox in [`app/hindsight.py`](app/hindsight.py):
 
 ```python
 class HindsightClient:
@@ -127,7 +127,7 @@ When an expense is recorded, it writes to local SQLite first. If Hindsight is re
 
 ### 2. Retaining Experiential Precedent
 
-We don't just store receipts; we store *experiences*. When an expense is stopped by a policy rule, or when an administrative user attaches an approval code, we capture that event in [`app/learning.py`](file:///c:/Users/rocky/Documents/Codex/2026-09-27/files-pasted-by-the-user-markdown/app/learning.py):
+We don't just store receipts; we store *experiences*. When an expense is stopped by a policy rule, or when an administrative user attaches an approval code, we capture that event in [`app/learning.py`](app/learning.py):
 
 ```python
 async def remember(kind: Kind, grant_id: str, text: str, *, 

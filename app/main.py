@@ -46,19 +46,29 @@ PUBLIC_API = ("/api/auth/", "/api/health")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     task = None
-    if hindsight.get_client().enabled:
-        # Push any ledger entries that never reached Hindsight (seed data, earlier outages).
-        task = asyncio.create_task(_background_sync())
+    if hindsight.get_client().enabled and settings.outbox_enabled:
+        task = asyncio.create_task(_outbox_loop())
     yield
     if task:
         task.cancel()
 
 
-async def _background_sync() -> None:
+async def _background_sync() -> dict[str, Any]:
+    """One outbox pass: push due expenses and experiences to Hindsight."""
+    out: dict[str, Any] = {}
     try:
-        await memory_sync.sync_pending(limit=200)
+        out["expenses"] = await memory_sync.sync_pending(limit=200)
+        out["experiences"] = await learning.sync_pending_events(limit=200)
     except Exception as exc:  # never crash the app over a sync
         logger.warning("background sync failed: %s", exc)
+    return out
+
+
+async def _outbox_loop() -> None:
+    """Outbox: retry anything that didn't reach Hindsight (outages, seed data), with backoff per item."""
+    while True:
+        await _background_sync()
+        await asyncio.sleep(settings.outbox_interval_seconds)
 
 
 app = FastAPI(
@@ -599,9 +609,11 @@ def _history_entry(
         "status": ev["status"],
         "risk_score": ev["risk_score"],
         "findings": [
-            {"clause": f["clause"], "severity": f["severity"], "message": f["message"]} for f in ev["findings"]
+            {"clause": f["clause"], "severity": f["severity"], "message": f["message"], "source": f.get("source")}
+            for f in ev["findings"]
         ],
         "engine_version": ev["engine_version"],
+        "memory_impact": learning.impact_of(ev, req.prior_approval_ref),
         **extra,
     }
 
@@ -617,6 +629,10 @@ async def audit_expense(req: AuditExpenseRequest, request: Request) -> dict[str,
     )
 
     result["amount"], result["fx"] = expense.amount, fxinfo
+    if req.mode == "with_memory":
+        learning.apply_memory(result, req.grant_id, vendor=req.vendor, spender_id=req.spender_id,
+                              has_approval_ref=bool(req.prior_approval_ref),
+                              currency=grant.get("currency") or "USD")
     committed: dict[str, Any] | None = None
     if req.mode == "with_memory" and req.commit and not decision.blocking:
         paid = (
@@ -705,6 +721,9 @@ async def _compare(req: AuditExpenseRequest, *, advisory: bool) -> dict[str, Any
     )
     for ev in (with_mem, without_mem):
         ev["amount"], ev["fx"] = expense.amount, fxinfo
+    learning.apply_memory(with_mem, req.grant_id, vendor=req.vendor, spender_id=req.spender_id,
+                          has_approval_ref=bool(req.prior_approval_ref),
+                              currency=grant.get("currency") or "USD")
     d = compliance_engine.diff(with_mem, without_mem)
     # Which past ledger entries drove the extra findings: the evidence memory supplied.
     rules_hit = {f["rule_id"] for f in d["caught_by_memory"]} or {
@@ -968,6 +987,39 @@ async def memory_lessons(grant_id: str, refresh: bool = False) -> dict[str, Any]
     """Lessons learned on this grant, written by Hindsight reflect from everything it remembers."""
     g, _ = _grant(grant_id)
     return await learning.lessons(grant_id, g.get("name", grant_id), refresh=refresh)
+
+
+@app.get("/api/memory/events", tags=["memory"])
+async def memory_events(grant_id: str) -> dict[str, Any]:
+    """Every experience GrantAnchor has kept for this grant (stops, approvals, overruns), newest first."""
+    _grant(grant_id)
+    keep = ("id", "kind", "text", "vendor", "spender", "created_at", "sync_status", "approval_ref", "overrun_pct")
+    return {"items": [{k: e.get(k) for k in keep} for e in learning.events(grant_id)]}
+
+
+@app.get("/api/memory/answer", tags=["memory"])
+async def memory_answer(grant_id: str, q: str = Query(..., min_length=3, max_length=300)) -> dict[str, Any]:
+    """A written answer from Hindsight reflect (takes several seconds). Pair with /api/memory/recall for sources."""
+    _grant(grant_id)
+    return await learning.answer(grant_id, q)
+
+
+@app.get("/api/grants/{grant_id}/report.csv", tags=["grants"])
+async def funder_report_csv(grant_id: str, start: date | None = None, end: date | None = None) -> Response:
+    """Spend by category for a reporting period, against budget caps. Ready to paste into a funder report."""
+    g, store = _grant(grant_id)
+    s_ = start or date.fromisoformat(g.get("start_date") or "1970-01-01")
+    e_ = end or clock.now().date()
+    rows = insights.funder_report({"id": grant_id, **g}, [m for m in store["memories"] if m.get("grant_id") == grant_id],
+                                  s_, e_)
+    buf = io.StringIO()
+    buf.write(f"# {g.get('name')} ({grant_id}), {g.get('currency', 'USD')}, period {s_.isoformat()} to {e_.isoformat()}")
+    buf.write("\n")
+    w = csv.DictWriter(buf, fieldnames=list(rows[0]) if rows else ["category"])
+    w.writeheader()
+    w.writerows(rows)
+    return Response(buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="report_{grant_id}_{s_}_{e_}.csv"'})
 
 
 @app.get("/api/memory/stats", tags=["memory"])

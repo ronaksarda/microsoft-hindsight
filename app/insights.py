@@ -133,3 +133,29 @@ def dashboard(grant_id: str, grant: dict[str, Any], memories: list[dict[str, Any
         "sync": dict(sync),
         "entries": len(entries),
     }
+
+
+def funder_report(grant: dict[str, Any], memories: list[dict[str, Any]], start: date, end: date) -> list[dict[str, Any]]:
+    """Spend by budget category for a reporting period, against the grant's lifetime category caps."""
+    rules = grant_rules(grant)
+    caps = {r.category: r.cap for r in rules if isinstance(r, CategoryCapRule) and r.category and r.window is None}
+    entries = [engine.LedgerEntry.from_record(m) for m in memories]
+    cats = sorted({e.category for e in entries} | set(caps))
+    rows = []
+    for c in cats:
+        period = [e for e in entries if e.category == c and start <= e.timestamp.date() <= end]
+        lifetime = sum(e.amount for e in entries if e.category == c)
+        cap = caps.get(c)
+        rows.append({
+            "category": c, "period_spend": round(sum(e.amount for e in period), 2), "entries": len(period),
+            "lifetime_spend": round(lifetime, 2), "budget_cap": cap,
+            "pct_of_cap": round(lifetime / cap * 100, 1) if cap else None,
+            "remaining": round(cap - lifetime, 2) if cap else None,
+        })
+    total = float(grant.get("total_funding") or 0)
+    all_life = sum(e.amount for e in entries)
+    rows.append({"category": "TOTAL", "period_spend": round(sum(r["period_spend"] for r in rows), 2),
+                 "entries": sum(r["entries"] for r in rows), "lifetime_spend": round(all_life, 2),
+                 "budget_cap": total or None, "pct_of_cap": round(all_life / total * 100, 1) if total else None,
+                 "remaining": round(total - all_life, 2) if total else None})
+    return rows
