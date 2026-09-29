@@ -3,574 +3,1095 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GrantAnchor</title>
-  <meta name="description" content="Check grant spending against your agreement before you commit funds." />
+  <title>GrantAnchor · Autonomous Grant Spending Compliance</title>
+  <meta name="description" content="Check grant spending against your agreement before you commit funds. Zero-clawback intelligence powered by live contract rules and cognitive memory." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Geist', 'system-ui', 'sans-serif'], mono: ['"JetBrains Mono"', 'monospace'] } } } };</script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          animation: {
+            'shimmer': 'shimmer 3s linear infinite',
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            shimmer: {
+              from: { backgroundPosition: '0 0' },
+              to: { backgroundPosition: '-200% 0' },
+            }
+          }
+        }
+      }
+    };
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
   <style>
     [x-cloak] { display: none !important; }
-    body { background: #09090b; }
-    .num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
-    .card { background: #111113; border: 1px solid #27272a; border-radius: 14px; }
-    .field { width: 100%; background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: .6rem .75rem; font-size: .875rem; color: #e4e4e7; }
-    .field:focus { outline: none; box-shadow: 0 0 0 2px rgba(52,211,153,.45); border-color: #3f3f46; }
-    .scroll::-webkit-scrollbar { width: 6px; height: 6px; } .scroll::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 6px; }
-    .fade-in { animation: fade .25s ease-out; } @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    body {
+      background-color: #000000;
+      color: #EDEDED;
+    }
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .bg-dot-pattern {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: radial-gradient(ellipse at 50% 15%, black 40%, transparent 85%);
+      -webkit-mask-image: radial-gradient(ellipse at 50% 15%, black 40%, transparent 85%);
+    }
+    .card {
+      background: rgba(10, 10, 10, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 20px 40px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+    .card-interactive:hover {
+      transform: translateY(-1.5px);
+      border-color: rgba(16, 185, 129, 0.35);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9), 0 25px 50px -15px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.08);
+    }
+    .field {
+      width: 100%;
+      background: rgba(18, 18, 18, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.875rem;
+      color: #FFFFFF;
+      transition: all 0.2s ease;
+    }
+    .field:focus {
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+      background: rgba(24, 24, 24, 0.95);
+    }
+    .shimmer-button {
+      background-image: linear-gradient(110deg, #10b981 35%, #6ee7b7 50%, #10b981 65%);
+      background-size: 200% 100%;
+      animation: shimmer 3s infinite linear;
+    }
+    .scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .scroll::-webkit-scrollbar-track { background: rgba(10, 10, 10, 0.5); }
+    .scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 5px; }
+    .scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+    .fade-in { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
-<body class="min-h-screen text-zinc-200 font-sans antialiased" x-data="app()" x-init="init()">
+<body class="min-h-screen text-neutral-200 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-400 bg-black relative overflow-x-hidden" x-data="app()" x-init="init()">
 
-  <header class="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-      <div class="flex items-center gap-2 shrink-0">
-        <div class="w-7 h-7 rounded-lg bg-emerald-400 text-zinc-950 grid place-items-center font-bold text-sm">G</div>
-        <span class="hidden sm:inline font-semibold text-white tracking-tight">GrantAnchor</span>
+  <!-- Aceternity Spotlight Background & Dot Grid -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[450px] bg-gradient-to-b from-emerald-500/12 via-teal-500/4 to-transparent blur-[120px] rounded-full"></div>
+    <div class="absolute inset-0 bg-dot-pattern opacity-60"></div>
+  </div>
+
+  <!-- Sticky Top Header -->
+  <header class="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center gap-3">
+      <!-- Cool Custom Cyber-Anchor Logo -->
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div class="relative size-8 rounded-lg bg-neutral-950 border border-white/15 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+          <svg class="size-5 text-emerald-400" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="7" r="4.5" stroke="currentColor" stroke-width="2.2"/>
+            <circle cx="16" cy="7" r="1.8" fill="#34d399"/>
+            <path d="M7 13.5H25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="9" cy="13.5" r="1" fill="#ffffff"/>
+            <circle cx="23" cy="13.5" r="1" fill="#ffffff"/>
+            <path d="M16 11.5V26" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M5.5 19.5C6.5 25.5 10.5 28.5 16 28.5C21.5 28.5 25.5 25.5 26.5 19.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M4 18L5.5 20.2L8 18.8" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M28 18L26.5 20.2L24 18.8" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="hidden sm:inline font-bold text-white tracking-tight text-base">GrantAnchor</span>
       </div>
+
+      <!-- Grant Selector -->
       <label for="grant" class="sr-only">Grant</label>
-      <select id="grant" x-show="hasGrants()" x-model="grantId" @change="switchGrant()" class="min-w-0 max-w-[55vw] sm:max-w-xs truncate bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/50">
-        <template x-for="(g, id) in state.grants" :key="id"><option :value="id" :selected="id === grantId" x-text="g.name"></option></template>
-      </select>
-      <button type="button" @click="openNewGrant()" class="shrink-0 w-8 h-8 rounded-lg border border-zinc-800 hover:bg-zinc-900 text-zinc-300" aria-label="New grant" title="New grant">+</button>
-      <div class="flex-1"></div>
-      <button type="button" @click="showStatus = !showStatus" class="hidden md:flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-900" :aria-expanded="showStatus">
-        <span class="w-2 h-2 rounded-full" :class="memoryDot()"></span><span x-text="memoryLabel()"></span>
+      <div class="relative shrink-0 max-w-[55vw] sm:max-w-xs" x-show="hasGrants()">
+        <select id="grant" x-model="grantId" @change="switchGrant()" class="w-full truncate bg-neutral-900 border border-neutral-800 rounded-lg pl-3 pr-8 py-1.5 text-xs sm:text-sm text-neutral-100 font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer">
+          <template x-for="(g, id) in state.grants" :key="id">
+            <option :value="id" :selected="id === grantId" x-text="g.name"></option>
+          </template>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-neutral-400">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+      </div>
+
+      <!-- New Grant Button -->
+      <button type="button" @click="openNewGrant()" class="shrink-0 size-8 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 hover:border-neutral-700 text-neutral-300 hover:text-white flex items-center justify-center transition" aria-label="New grant" title="New grant">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+        <span class="sr-only">+</span>
       </button>
+
+      <div class="flex-1"></div>
+
+      <!-- Hindsight Memory Status Chip -->
+      <button type="button" @click="showStatus = !showStatus" class="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-950/80 hover:bg-neutral-900 transition" :aria-expanded="showStatus">
+        <span class="relative flex size-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="memoryDot()"></span>
+          <span class="relative inline-flex rounded-full size-2" :class="memoryDot()"></span>
+        </span>
+        <span class="font-medium text-neutral-300 font-mono text-[11px]" x-text="memoryLabel()"></span>
+      </button>
+
+      <!-- Account Profile Dropdown -->
       <div class="relative" @click.outside="menu = false">
-        <button type="button" @click="menu = !menu" class="w-8 h-8 rounded-full bg-zinc-800 text-zinc-200 text-xs font-semibold grid place-items-center hover:bg-zinc-700" :aria-expanded="menu" aria-label="Account menu" x-text="initials(user.name)"></button>
-        <div x-show="menu" x-cloak x-transition class="absolute right-0 mt-2 w-56 card p-2 shadow-xl">
-          <div class="px-2 py-1.5"><div class="text-sm text-white" x-text="user.name"></div><div class="text-xs text-zinc-500 truncate" x-text="user.email || 'Login disabled on this server'"></div></div>
-          <div class="border-t border-zinc-800 my-1"></div>
-          <button type="button" @click="menu=false; showStatus=true" class="md:hidden w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-zinc-800">System status</button>
-          <button type="button" @click="logout()" class="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-zinc-800 text-rose-300">Sign out</button>
+        <button type="button" @click="menu = !menu" class="size-8 rounded-full bg-neutral-900 border border-neutral-800 text-emerald-400 text-xs font-bold grid place-items-center hover:border-emerald-500/50 transition" :aria-expanded="menu" aria-label="Account menu" x-text="initials(user.name)"></button>
+        <div x-show="menu" x-cloak x-transition class="absolute right-0 mt-2 w-60 card p-2 shadow-2xl z-50">
+          <div class="px-3 py-2">
+            <div class="text-sm font-semibold text-white truncate" x-text="user.name"></div>
+            <div class="text-xs text-neutral-400 truncate mt-0.5" x-text="user.email || 'Login disabled on this server'"></div>
+          </div>
+          <div class="border-t border-white/10 my-1"></div>
+          <button type="button" @click="menu=false; showStatus=true" class="md:hidden w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/5 text-neutral-300">System status</button>
+          <button type="button" @click="logout()" class="w-full text-left px-3 py-2 text-xs font-medium rounded-md hover:bg-rose-500/10 text-rose-400">Sign out</button>
         </div>
       </div>
     </div>
-    <div x-show="showStatus" x-cloak x-transition class="border-t border-zinc-800 bg-zinc-950">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid sm:grid-cols-3 gap-3 text-xs">
-        <div class="card p-3"><div class="text-zinc-500">Ledger database</div><div class="mt-1 text-zinc-200" x-text="health.database ? (health.database.status === 'ok' ? 'Connected · ' + health.database.path : 'Error') : '…'"></div><div class="text-zinc-500 mt-1">Source of truth for every dollar.</div></div>
-        <div class="card p-3"><div class="text-zinc-500">Hindsight memory</div><div class="mt-1 text-zinc-200" x-text="hindsightText()"></div><div class="text-zinc-500 mt-1" x-text="syncSummary()"></div></div>
-        <div class="card p-3"><div class="text-zinc-500">AI second opinion</div><div class="mt-1 text-zinc-200" x-text="health.llm ? (health.llm.status === 'ok' ? 'On · ' + health.llm.model : health.llm.status === 'disabled' ? 'Off (no API key)' : 'Unreachable') : '…'"></div><div class="text-zinc-500 mt-1">Advisory only. It never changes a decision.</div></div>
+
+    <!-- Collapsible System Status Tray -->
+    <div x-show="showStatus" x-cloak x-transition class="border-t border-white/10 bg-black/95 backdrop-blur-2xl">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid sm:grid-cols-3 gap-3 text-xs">
+        <div class="card p-3.5 bg-neutral-950/80">
+          <div class="text-neutral-400 font-medium">Ledger database</div>
+          <div class="mt-1 text-white font-mono text-[11px]" x-text="health.database ? (health.database.status === 'ok' ? 'Connected · ' + health.database.path : 'Error') : '…'"></div>
+          <div class="text-neutral-500 mt-1">Source of truth for every dollar.</div>
+        </div>
+        <div class="card p-3.5 bg-neutral-950/80">
+          <div class="text-neutral-400 font-medium">Hindsight memory</div>
+          <div class="mt-1 text-white font-mono text-[11px]" x-text="hindsightText()"></div>
+          <div class="text-neutral-500 mt-1" x-text="syncSummary()"></div>
+        </div>
+        <div class="card p-3.5 bg-neutral-950/80">
+          <div class="text-neutral-400 font-medium">AI second opinion</div>
+          <div class="mt-1 text-white font-mono text-[11px]" x-text="health.llm ? (health.llm.status === 'ok' ? 'On · ' + health.llm.model : health.llm.status === 'disabled' ? 'Off (no API key)' : 'Unreachable') : '…'"></div>
+          <div class="text-neutral-500 mt-1">Advisory only. It never changes a decision.</div>
+        </div>
       </div>
     </div>
-    <nav x-show="hasGrants()" class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scroll text-sm" role="tablist">
+
+    <!-- Navigation Tabs -->
+    <nav x-show="hasGrants()" class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto scroll text-sm border-t border-white/5" role="tablist">
       <template x-for="t in tabs" :key="t.id">
-        <button type="button" role="tab" :aria-selected="tab === t.id" @click="openTab(t.id)" class="px-3 py-2.5 border-b-2 whitespace-nowrap transition" :class="tab === t.id ? 'border-emerald-400 text-white' : 'border-transparent text-zinc-400 hover:text-zinc-200'">
-          <span x-text="t.label"></span><span x-show="t.count && t.count()" class="ml-1.5 num text-[11px] text-zinc-500" x-text="t.count && t.count()"></span>
+        <button type="button" role="tab" :aria-selected="tab === t.id" @click="openTab(t.id)" class="px-3.5 py-2.5 border-b-2 whitespace-nowrap transition-all flex items-center gap-2 text-xs sm:text-sm font-medium" :class="tab === t.id ? 'border-emerald-400 text-white' : 'border-transparent text-neutral-400 hover:text-white'">
+          <span x-text="t.label"></span>
+          <span x-show="t.count && t.count()" class="num text-[10px] px-1.5 py-0.5 rounded-full" :class="tab === t.id ? 'bg-emerald-500/20 text-emerald-400 font-bold' : 'bg-neutral-800 text-neutral-400'" x-text="t.count && t.count()"></span>
         </button>
       </template>
     </nav>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-    <template x-if="booting"><div class="py-24 text-center text-zinc-500 text-sm">Loading your grants…</div></template>
-
-    <!-- FIRST RUN -->
-    <section x-show="!booting && !hasGrants()" x-cloak class="max-w-2xl mx-auto py-10 fade-in">
-      <h1 class="text-2xl font-semibold text-white">Set up your first grant</h1>
-      <p class="mt-2 text-zinc-400">Upload the award letter or grant agreement. GrantAnchor reads the amount, dates and spending rules, and you check them before anything is saved.</p>
-      <div class="mt-6 card p-5 space-y-3">
-        <label class="block rounded-xl border border-dashed p-8 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; openNewGrant(); uploadFile($event.dataTransfer.files[0], true)">
-          <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md" @change="openNewGrant(); uploadFile($event.target.files[0], true); $event.target.value = ''" aria-label="Upload grant file" />
-          <span class="text-white font-medium">Upload the grant file</span>
-          <span class="block text-sm text-zinc-500 mt-1">PDF, Word (.docx) or text</span>
-        </label>
-        <button type="button" @click="openNewGrant()" class="w-full rounded-lg py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900">Enter the details by hand</button>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+    <template x-if="booting">
+      <div class="py-32 flex flex-col items-center justify-center text-center">
+        <div class="size-8 border-2 border-emerald-400/20 border-t-emerald-400 rounded-full animate-spin"></div>
+        <div class="mt-4 text-neutral-400 text-sm font-mono">Loading your grants…</div>
       </div>
-      <ol class="mt-8 space-y-2 text-sm text-zinc-400 list-decimal pl-5">
-        <li>Add the grant and check its rules.</li>
-        <li>Add the people who spend money (you're added automatically).</li>
-        <li>Check each expense before paying. Approved ones go into the ledger and Hindsight memory.</li>
-      </ol>
+    </template>
+
+    <!-- FIRST RUN EMPTY STATE -->
+    <section x-show="!booting && !hasGrants()" x-cloak class="max-w-2xl mx-auto py-12 fade-in">
+      <div class="text-center">
+        <div class="size-14 rounded-2xl bg-neutral-950 border border-white/10 text-emerald-400 grid place-items-center mx-auto mb-4 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+          <svg class="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <h1 class="text-3xl font-extrabold text-white tracking-tight">Set up your first grant</h1>
+        <p class="mt-3 text-neutral-400 text-sm leading-relaxed max-w-lg mx-auto">Upload the award letter or grant agreement. GrantAnchor reads the amount, dates and spending rules, and you check them before anything is saved.</p>
+      </div>
+
+      <div class="mt-8 card p-6 space-y-4">
+        <label class="block rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/10' : 'border-neutral-800 hover:border-neutral-700 bg-neutral-950/40'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; openNewGrant(); uploadFile($event.dataTransfer.files[0], true)">
+          <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md" @change="openNewGrant(); uploadFile($event.target.files[0], true); $event.target.value = ''" aria-label="Upload grant file" />
+          <span class="text-white font-semibold text-base block">Upload the grant file</span>
+          <span class="block text-xs text-neutral-400 mt-1 font-mono">PDF, Word (.docx) or text</span>
+        </label>
+        <button type="button" @click="openNewGrant()" class="w-full rounded-xl py-3 text-sm font-semibold border border-neutral-800 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-200 transition">Enter the details by hand</button>
+      </div>
+
+      <div class="mt-10 p-5 rounded-xl bg-neutral-950/60 border border-white/5">
+        <ol class="space-y-2.5 text-xs text-neutral-400 list-decimal pl-5 leading-relaxed">
+          <li>Add the grant and check its rules.</li>
+          <li>Add the people who spend money (you're added automatically).</li>
+          <li>Check each expense before paying. Approved ones go into the ledger and Hindsight memory.</li>
+        </ol>
+      </div>
     </section>
 
-    <!-- OVERVIEW -->
+    <!-- OVERVIEW TAB (Aceternity Bento Grid Layout) -->
     <section x-show="!booting && hasGrants() && tab === 'overview'" x-cloak class="space-y-6 fade-in">
+      
+      <!-- Top 4 Bento KPI Metrics -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="card p-5">
-          <div class="text-sm text-zinc-400">Budget left</div>
-          <div class="mt-1 num text-3xl font-semibold text-white" x-text="money(dash.remaining)"></div>
-          <div class="mt-3 h-2 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full bg-emerald-400 rounded-full" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div>
-          <div class="mt-2 text-xs text-zinc-500"><span class="num" x-text="money(dash.spent)"></span> spent of <span class="num" x-text="money(dash.total_funding)"></span></div>
-        </div>
-        <div class="card p-5">
-          <div class="text-sm text-zinc-400">Monthly burn</div>
-          <div class="mt-1 num text-3xl font-semibold text-white" x-text="money(dash.burn_per_month)"></div>
-          <div class="mt-3 text-xs text-zinc-400" x-text="dash.runway_months != null ? `About ${dash.runway_months} months of money left at this pace.` : 'No spending yet.'"></div>
-          <div class="mt-1 text-xs text-zinc-500" x-text="dash.period ? `Grant ends ${niceDate(dash.period.end)} · ${dash.period.days_left} days to go` : ''"></div>
-        </div>
-        <div class="card p-5">
-          <div class="text-sm text-zinc-400">Time vs. money</div>
-          <div class="mt-3 space-y-2 text-xs">
-            <div><div class="flex justify-between text-zinc-400"><span>Time used</span><span class="num" x-text="pct(dash.period?.pct_elapsed)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-sky-400" :style="`width:${dash.period?.pct_elapsed || 0}%`"></div></div></div>
-            <div><div class="flex justify-between text-zinc-400"><span>Budget used</span><span class="num" x-text="pct(dash.pct_budget_used)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-emerald-400" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div></div>
+        <!-- Budget Left -->
+        <div class="card card-interactive p-5 relative overflow-hidden">
+          <div class="text-xs font-mono uppercase tracking-wider text-neutral-400">Budget left</div>
+          <div class="mt-2 num text-3xl font-extrabold text-white tracking-tight" x-text="money(dash.remaining)"></div>
+          <div class="mt-4 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+            <div class="h-full bg-emerald-400 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div>
           </div>
-          <div class="mt-3 text-xs" :class="dash.pace === 'ahead' ? 'text-amber-300' : 'text-zinc-400'" x-text="paceText()"></div>
+          <div class="mt-2.5 text-xs text-neutral-400 flex justify-between font-mono">
+            <span><span class="num text-neutral-200" x-text="money(dash.spent)"></span> spent</span>
+            <span>of <span class="num text-neutral-200" x-text="money(dash.total_funding)"></span></span>
+          </div>
         </div>
-        <div class="card p-5 flex items-center gap-4">
-          <svg viewBox="0 0 36 36" class="w-16 h-16 shrink-0 -rotate-90" aria-hidden="true">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#27272a" stroke-width="3.5"></circle>
-            <circle cx="18" cy="18" r="15.9" fill="none" :stroke="scoreColor(dash.health_score)" stroke-width="3.5" stroke-linecap="round" :stroke-dasharray="`${dash.health_score || 0} 100`"></circle>
-          </svg>
-          <div>
-            <div class="text-sm text-zinc-400">Compliance health</div>
-            <div class="num text-2xl font-semibold text-white"><span x-text="dash.health_score ?? '–'"></span><span class="text-sm text-zinc-500">/100</span></div>
-            <div class="text-xs text-zinc-400 mt-0.5" x-text="healthText()"></div>
+
+        <!-- Monthly Burn -->
+        <div class="card card-interactive p-5 relative overflow-hidden">
+          <div class="text-xs font-mono uppercase tracking-wider text-neutral-400">Monthly burn</div>
+          <div class="mt-2 num text-3xl font-extrabold text-white tracking-tight" x-text="money(dash.burn_per_month)"></div>
+          <div class="mt-3 text-xs text-neutral-300 font-medium" x-text="dash.runway_months != null ? `About ${dash.runway_months} months of money left at this pace.` : 'No spending yet.'"></div>
+          <div class="mt-1 text-[11px] text-neutral-500 font-mono" x-text="dash.period ? `Grant ends ${niceDate(dash.period.end)} · ${dash.period.days_left} days to go` : ''"></div>
+        </div>
+
+        <!-- Time vs. Money -->
+        <div class="card card-interactive p-5 relative overflow-hidden">
+          <div class="text-xs font-mono uppercase tracking-wider text-neutral-400">Time vs. money</div>
+          <div class="mt-3 space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between text-neutral-400 font-mono"><span>Time used</span><span class="num text-neutral-200" x-text="pct(dash.period?.pct_elapsed)"></span></div>
+              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]" :style="`width:${dash.period?.pct_elapsed || 0}%`"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-neutral-400 font-mono"><span>Budget used</span><span class="num text-neutral-200" x-text="pct(dash.pct_budget_used)"></span></div>
+              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div>
+            </div>
+          </div>
+          <div class="mt-3 text-xs font-medium" :class="dash.pace === 'ahead' ? 'text-amber-400' : 'text-neutral-400'" x-text="paceText()"></div>
+        </div>
+
+        <!-- Compliance Health -->
+        <div class="card card-interactive p-5 flex items-center gap-4 relative overflow-hidden">
+          <div class="relative size-16 shrink-0">
+            <svg viewBox="0 0 36 36" class="size-16 -rotate-90" aria-hidden="true">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3.5"></circle>
+              <circle cx="18" cy="18" r="15.9" fill="none" :stroke="scoreColor(dash.health_score)" stroke-width="3.5" stroke-linecap="round" :stroke-dasharray="`${dash.health_score || 0} 100`"></circle>
+            </svg>
+            <div class="absolute inset-0 grid place-items-center">
+              <span class="text-[10px] font-mono font-bold text-neutral-400">KPI</span>
+            </div>
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-mono uppercase tracking-wider text-neutral-400">Compliance health</div>
+            <div class="num text-2xl font-extrabold text-white mt-0.5"><span x-text="dash.health_score ?? '–'"></span><span class="text-xs text-neutral-500 font-normal">/100</span></div>
+            <div class="text-xs font-medium text-neutral-300 mt-1 truncate" x-text="healthText()"></div>
           </div>
         </div>
       </div>
 
-      <div class="card p-5">
-        <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-          <div class="sm:w-64 shrink-0">
-            <h2 class="text-base font-semibold text-white">What we've learned</h2>
-            <p class="text-sm text-zinc-400 mt-1" x-text="memStats.level || ''"></p>
-            <div class="mt-3 flex items-end gap-1 h-10" aria-hidden="true">
-              <template x-for="n in 12" :key="n"><div class="flex-1 rounded-sm" :class="n <= learnBars() ? 'bg-violet-400' : 'bg-zinc-800'" :style="`height:${25 + n * 6}%`"></div></template>
+      <!-- What We've Learned (Hindsight Cognitive Board) -->
+      <div class="card p-6 border-violet-500/25 relative overflow-hidden">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-6">
+          <div class="sm:w-72 shrink-0">
+            <h2 class="text-base font-bold text-white tracking-tight">What we've learned</h2>
+            <p class="text-xs text-violet-400 font-mono font-semibold mt-1 uppercase tracking-wider" x-text="memStats.level || 'Cognitive Engine'"></p>
+            <!-- 12 Equalizer Memory Bars -->
+            <div class="mt-4 flex items-end gap-1.5 h-10 bg-neutral-950 p-2 rounded-lg border border-neutral-800" aria-hidden="true">
+              <template x-for="n in 12" :key="n">
+                <div class="flex-1 rounded-sm transition-all duration-300" :class="n <= learnBars() ? 'bg-gradient-to-t from-violet-600 to-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-neutral-800'" :style="`height:${25 + n * 6}%`"></div>
+              </template>
             </div>
-            <p class="mt-2 text-xs text-zinc-500" x-text="`Learned from ${memStats.expenses || 0} expenses, ${memStats.by_kind?.decision || 0} stopped payments, ${memStats.by_kind?.approval || 0} approvals and ${memStats.by_kind?.overrun || 0} corrections.`"></p>
+            <p class="mt-2.5 text-xs text-neutral-400 leading-relaxed font-mono" x-text="`Learned from ${memStats.expenses || 0} expenses, ${memStats.by_kind?.decision || 0} stopped payments, ${memStats.by_kind?.approval || 0} approvals and ${memStats.by_kind?.overrun || 0} corrections.`"></p>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-xs text-zinc-500" x-text="lessonsNote()"></span>
-              <button type="button" @click="loadLessons(true)" :disabled="busy === 'lessons' || !lessonsAvailable()" class="text-xs rounded-lg px-3 py-1.5 border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'lessons' ? 'Hindsight is thinking…' : 'Refresh lessons'"></button>
+            <div class="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+              <span class="text-xs text-neutral-400 font-mono" x-text="lessonsNote()"></span>
+              <button type="button" @click="loadLessons(true)" :disabled="busy === 'lessons' || !lessonsAvailable()" class="text-xs font-mono font-medium rounded-lg px-3 py-1.5 border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 transition disabled:opacity-50" x-text="busy === 'lessons' ? 'Hindsight is thinking…' : 'Refresh lessons'"></button>
             </div>
-            <ol class="mt-3 space-y-2">
+            <ol class="mt-4 space-y-2">
               <template x-for="(l, i) in (lessons?.lessons || [])" :key="i">
-                <li class="flex gap-3 text-sm"><span class="num text-violet-300 shrink-0" x-text="i + 1"></span><span><span class="text-zinc-200" x-text="l.lesson"></span><span x-show="l.evidence" class="block text-xs text-zinc-500 mt-0.5" x-text="l.evidence"></span></span></li>
+                <li class="flex gap-3 text-sm p-2 rounded-lg bg-neutral-950/60 border border-white/5">
+                  <span class="num text-violet-400 font-bold shrink-0 text-xs mt-0.5" x-text="i + 1"></span>
+                  <div class="min-w-0">
+                    <span class="text-neutral-200 font-medium" x-text="l.lesson"></span>
+                    <span x-show="l.evidence" class="block text-xs text-neutral-500 font-mono mt-0.5" x-text="l.evidence"></span>
+                  </div>
+                </li>
               </template>
             </ol>
-            <p x-show="lessons && lessons.status === 'invalid' && lessons.summary" class="mt-3 text-sm text-zinc-300 whitespace-pre-line" x-text="lessons?.summary"></p>
+            <p x-show="lessons && lessons.status === 'invalid' && lessons.summary" class="mt-3 text-sm text-neutral-300 whitespace-pre-line p-3 rounded-lg bg-neutral-950 border border-white/5" x-text="lessons?.summary"></p>
           </div>
         </div>
       </div>
 
+      <!-- Core Spending Decision Center: 5 cols Form / 7 cols Stage -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="card p-5 lg:col-span-5">
-          <h2 class="text-lg font-semibold text-white">Can we spend this?</h2>
-          <p class="text-sm text-zinc-400 mt-1">Fill in the details. The answer updates as you type, checked against <span class="num text-zinc-300" x-text="(dash.enforced_rules || []).length"></span> rules and <span class="num text-zinc-300" x-text="dash.entries || 0"></span> past expenses.</p>
-          <form class="mt-5 space-y-4" @submit.prevent="record()">
-            <div>
-              <label for="f-who" class="block text-sm text-zinc-300 mb-1.5">Who is spending?</label>
-              <p x-show="!state.team_members.length" class="text-sm text-amber-300 mb-1.5">Add the people who spend money first. <button type="button" class="underline" @click="openTab('team')">Go to Team</button></p>
-              <select id="f-who" x-model="form.spender_id" class="field">
-                <template x-for="m in state.team_members" :key="m.id"><option :value="m.id" :selected="m.id === form.spender_id" x-text="`${m.name} · ${m.role}`"></option></template>
-              </select>
+        <!-- Input Form (5 cols) -->
+        <div class="card p-6 lg:col-span-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-bold text-white tracking-tight">Can we spend this?</h2>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">Realtime Engine</span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Fill in the details. The answer updates as you type, checked against <span class="num text-neutral-200 font-semibold" x-text="(dash.enforced_rules || []).length"></span> rules and <span class="num text-neutral-200 font-semibold" x-text="dash.entries || 0"></span> past expenses.</p>
+
+            <form class="mt-5 space-y-4" @submit.prevent="record()">
               <div>
-                <label for="f-vendor" class="block text-sm text-zinc-300 mb-1.5">Paying whom?</label>
-                <input id="f-vendor" x-model="form.vendor" class="field" autocomplete="off" list="vendors" />
-                <datalist id="vendors"><template x-for="v in vendorOptions()" :key="v"><option :value="v"></option></template></datalist>
+                <label for="f-who" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Who is spending?</label>
+                <p x-show="!state.team_members.length" class="text-xs text-amber-400 mb-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">Add the people who spend money first. <button type="button" class="underline font-semibold" @click="openTab('team')">Go to Team</button></p>
+                <select id="f-who" x-model="form.spender_id" class="field cursor-pointer">
+                  <template x-for="m in state.team_members" :key="m.id">
+                    <option :value="m.id" :selected="m.id === form.spender_id" x-text="`${m.name} · ${m.role}`"></option>
+                  </template>
+                </select>
               </div>
-              <div>
-                <label for="f-loc" class="block text-sm text-zinc-300 mb-1.5">Where are they based?</label>
-                <input id="f-loc" x-model="form.location" class="field" autocomplete="off" />
-                <p class="mt-1 text-xs min-h-[1rem]" :class="locHint().cls" x-text="locHint().text || 'City and country'"></p>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label for="f-amount" class="block text-sm text-zinc-300 mb-1.5">Amount</label>
-                <div class="flex gap-2">
-                  <input id="f-amount" type="number" min="0" step="0.01" inputmode="decimal" x-model.number="form.amount" class="field num flex-1 min-w-0" />
-                  <label for="f-cur" class="sr-only">Currency</label>
-                  <select id="f-cur" x-model="form.currency" class="field num !w-24 shrink-0">
-                    <template x-for="c in currencyCodes()" :key="c"><option :value="c" :selected="c === form.currency" x-text="c"></option></template>
-                  </select>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="f-vendor" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Paying whom?</label>
+                  <input id="f-vendor" x-model="form.vendor" placeholder="e.g. Pacific Air" class="field" autocomplete="off" list="vendors" />
+                  <datalist id="vendors">
+                    <template x-for="v in vendorOptions()" :key="v"><option :value="v"></option></template>
+                  </datalist>
+                </div>
+                <div>
+                  <label for="f-loc" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Where are they based?</label>
+                  <input id="f-loc" x-model="form.location" placeholder="City, Country" class="field" autocomplete="off" />
+                  <p class="mt-1 text-xs min-h-[1rem] font-medium" :class="locHint().cls" x-text="locHint().text || 'City and country'"></p>
                 </div>
               </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="f-amount" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Amount</label>
+                  <div class="flex gap-2">
+                    <input id="f-amount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" x-model.number="form.amount" class="field num flex-1 min-w-0 font-semibold" />
+                    <label for="f-cur" class="sr-only">Currency</label>
+                    <select id="f-cur" x-model="form.currency" class="field num !w-24 shrink-0 font-mono font-semibold cursor-pointer">
+                      <template x-for="c in currencyCodes()" :key="c">
+                        <option :value="c" :selected="c === form.currency" x-text="c"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label for="f-date" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Date of the expense</label>
+                  <input id="f-date" type="date" x-model="form.expense_date" class="field font-mono" />
+                </div>
+              </div>
+
+              <!-- Currency Exchange Rate Card -->
+              <template x-if="form.currency && form.currency !== grantCurrency()">
+                <div class="rounded-xl border border-white/10 bg-neutral-950/80 p-3 text-xs space-y-2 fade-in">
+                  <div class="flex justify-between gap-3 text-neutral-300">
+                    <span x-text="fxLine()"></span>
+                    <span class="num text-emerald-400 font-bold shrink-0" x-text="fxConverted()"></span>
+                  </div>
+                  <label class="flex items-center gap-2 text-neutral-400 cursor-pointer pt-1">
+                    <input type="checkbox" x-model="form.useOwnRate" class="accent-emerald-400 rounded" />
+                    <span>Use my own rate</span>
+                  </label>
+                  <div x-show="form.useOwnRate" class="flex items-center gap-2 pt-1">
+                    <span class="text-neutral-400 shrink-0 font-mono" x-text="`1 ${form.currency} =`"></span>
+                    <input type="number" min="0" step="any" x-model.number="form.fx_rate" class="field num !py-1 text-xs" aria-label="Exchange rate" />
+                    <span class="text-neutral-400 font-mono" x-text="grantCurrency()"></span>
+                  </div>
+                </div>
+              </template>
+
               <div>
-                <label for="f-date" class="block text-sm text-zinc-300 mb-1.5">Date of the expense</label>
-                <input id="f-date" type="date" x-model="form.expense_date" class="field" />
+                <label for="f-purpose" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">What is it for?</label>
+                <textarea id="f-purpose" x-model="form.purpose" rows="2" placeholder="Project deliverables or purpose..." class="field resize-none text-xs"></textarea>
               </div>
-            </div>
-            <template x-if="form.currency && form.currency !== grantCurrency()">
-              <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs space-y-2">
-                <div class="flex justify-between gap-3 text-zinc-400"><span x-text="fxLine()"></span><span class="num text-zinc-100 shrink-0" x-text="fxConverted()"></span></div>
-                <label class="flex items-center gap-2 text-zinc-400"><input type="checkbox" x-model="form.useOwnRate" class="accent-emerald-400" />Use my own rate</label>
-                <div x-show="form.useOwnRate" class="flex items-center gap-2"><span class="text-zinc-500 shrink-0" x-text="`1 ${form.currency} =`"></span><input type="number" min="0" step="any" x-model.number="form.fx_rate" class="field num" aria-label="Exchange rate" /><span class="text-zinc-500" x-text="grantCurrency()"></span></div>
+
+              <!-- Budget Category Quick Selector -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">Budget category</span>
+                  <span class="text-xs text-emerald-400 font-medium" x-show="!form.category && preview" x-text="preview ? 'We think: ' + preview.with_memory.category : ''"></span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button type="button" @click="form.category = ''" class="px-3 py-1 rounded-full text-xs font-medium border transition-all" :class="!form.category ? 'bg-white text-black border-white font-bold' : 'border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900'">Auto</button>
+                  <template x-for="c in categoryOptions()" :key="c">
+                    <button type="button" @click="form.category = c" class="px-3 py-1 rounded-full text-xs font-medium border transition-all" :class="form.category === c ? 'bg-white text-black border-white font-bold' : 'border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-900'" x-text="c"></button>
+                  </template>
+                </div>
               </div>
-            </template>
-            <div>
-              <label for="f-purpose" class="block text-sm text-zinc-300 mb-1.5">What is it for?</label>
-              <textarea id="f-purpose" x-model="form.purpose" rows="2" class="field resize-none"></textarea>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-sm text-zinc-300">Budget category</span>
-                <span class="text-xs text-zinc-500" x-show="!form.category && preview" x-text="preview ? 'We think: ' + preview.with_memory.category : ''"></span>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <button type="button" @click="form.category = ''" class="px-2.5 py-1 rounded-full text-xs border transition" :class="!form.category ? 'bg-zinc-100 text-zinc-900 border-zinc-100' : 'border-zinc-700 text-zinc-400 hover:text-zinc-200'">Auto</button>
-                <template x-for="c in categoryOptions()" :key="c">
-                  <button type="button" @click="form.category = c" class="px-2.5 py-1 rounded-full text-xs border transition" :class="form.category === c ? 'bg-zinc-100 text-zinc-900 border-zinc-100' : 'border-zinc-700 text-zinc-400 hover:text-zinc-200'" x-text="c"></button>
-                </template>
-              </div>
-            </div>
-            <details>
-              <summary class="text-sm text-zinc-400 cursor-pointer hover:text-zinc-200 select-none">Have written approval from the funder?</summary>
-              <input x-model="form.prior_approval_ref" class="field mt-2" aria-label="Approval reference" />
-            </details>
-          </form>
+
+              <!-- Prior Approval Accordion -->
+              <details class="rounded-xl border border-white/5 bg-neutral-950/60 p-3 group">
+                <summary class="text-xs text-neutral-400 font-medium cursor-pointer hover:text-white select-none flex items-center justify-between">
+                  <span>Have written approval from the funder?</span>
+                  <svg class="size-3.5 text-neutral-500 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="mt-2.5">
+                  <input x-model="form.prior_approval_ref" placeholder="Approval reference code (e.g. HLRF-PA-12)" class="field !py-1.5 text-xs font-mono" aria-label="Approval reference" />
+                </div>
+              </details>
+            </form>
+          </div>
         </div>
 
-        <div class="card p-5 lg:col-span-7 min-h-[28rem] flex flex-col" aria-live="polite">
+        <!-- Answer / Decision Display Stage (7 cols) -->
+        <div class="card p-6 lg:col-span-7 min-h-[30rem] flex flex-col justify-between" aria-live="polite">
+          <!-- Empty State -->
           <template x-if="!preview && !previewing">
-            <div class="flex-1 grid place-items-center text-center px-6">
-              <div>
-                <div class="mx-auto w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 grid place-items-center text-zinc-500">?</div>
-                <h3 class="mt-4 text-white font-medium">Your answer shows up here</h3>
-                <p class="mt-1 text-sm text-zinc-400 max-w-sm">Enter who is paying and how much. GrantAnchor checks the grant rules and everything your team has already spent.</p>
+            <div class="flex-1 grid place-items-center text-center px-6 py-12">
+              <div class="max-w-md">
+                <div class="size-14 rounded-2xl bg-neutral-950 border border-neutral-800 text-neutral-500 grid place-items-center mx-auto shadow-inner">
+                  <svg class="size-6 text-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </div>
+                <h3 class="mt-4 text-base font-bold text-white tracking-tight">Your answer shows up here</h3>
+                <p class="mt-1.5 text-xs text-neutral-400 leading-relaxed">Enter who is paying and how much. GrantAnchor checks the grant rules and everything your team has already spent.</p>
               </div>
             </div>
           </template>
 
+          <!-- Computed Result Stage -->
           <template x-if="preview">
-            <div class="flex-1 flex flex-col gap-5 fade-in" :class="previewing ? 'opacity-60 transition' : ''">
-              <div class="flex items-start gap-4">
-                <div class="w-11 h-11 rounded-xl grid place-items-center text-lg font-bold shrink-0" :class="tone(v().status).chip" x-text="tone(v().status).icon"></div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="text-xl font-semibold" :class="tone(v().status).text" x-text="tone(v().status).title"></h3>
-                  <p class="text-sm text-zinc-400 mt-0.5" x-text="headlineText()"></p>
+            <div class="flex-1 flex flex-col gap-4 fade-in" :class="previewing ? 'opacity-60 transition-opacity' : ''">
+              <!-- Top Verdict Card -->
+              <div class="p-5 rounded-xl border transition-all" :class="v().status === 'CLAWBACK_RISK_DETECTED' ? 'bg-rose-500/10 border-rose-500/30' : v().status === 'APPROVED_WITH_WARNINGS' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/30'">
+                <div class="flex items-start gap-4">
+                  <div class="size-11 rounded-xl grid place-items-center text-xl font-black shrink-0 shadow-md" :class="tone(v().status).chip" x-text="tone(v().status).icon"></div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-xl font-extrabold tracking-tight" :class="tone(v().status).text" x-text="tone(v().status).title"></h3>
+                    <p class="text-xs sm:text-sm text-neutral-300 mt-1 leading-relaxed" x-text="headlineText()"></p>
+                  </div>
+                  <div class="text-right shrink-0 bg-neutral-950 border border-white/10 px-3 py-1.5 rounded-lg">
+                    <div class="text-[10px] uppercase font-mono font-bold text-neutral-400">Risk</div>
+                    <div class="num text-2xl font-black" :class="riskColor(v().risk_score)" x-text="v().risk_score"></div>
+                  </div>
                 </div>
-                <div class="text-right shrink-0"><div class="text-xs text-zinc-500">Risk</div><div class="num text-2xl font-semibold" :class="riskColor(v().risk_score)" x-text="v().risk_score"></div></div>
-              </div>
-              <div>
-                <div class="h-2 rounded-full overflow-hidden flex"><div class="w-[30%] bg-emerald-500/40"></div><div class="w-[40%] bg-amber-500/40"></div><div class="w-[30%] bg-rose-500/40"></div></div>
-                <div class="relative h-0"><div class="absolute -top-3 w-1 h-4 bg-white rounded transition-all" :style="`left:calc(${v().risk_score}% - 2px)`"></div></div>
-                <div class="flex justify-between text-[11px] text-zinc-500 mt-2"><span>Safe</span><span>Watch</span><span>Stop</span></div>
+
+                <!-- Risk Meter Bar -->
+                <div class="mt-4">
+                  <div class="h-2 rounded-full overflow-hidden flex bg-neutral-950 border border-white/5">
+                    <div class="w-[30%] bg-emerald-500/60"></div>
+                    <div class="w-[40%] bg-amber-500/60"></div>
+                    <div class="w-[30%] bg-rose-500/60"></div>
+                  </div>
+                  <div class="relative h-0">
+                    <div class="absolute -top-3 w-1.5 h-4 bg-white rounded-full shadow-[0_0_8px_#ffffff] transition-all duration-300" :style="`left:calc(${v().risk_score}% - 3px)`"></div>
+                  </div>
+                  <div class="flex justify-between text-[11px] font-mono text-neutral-400 mt-2 px-1">
+                    <span class="text-emerald-400">Safe</span>
+                    <span class="text-amber-400">Watch</span>
+                    <span class="text-rose-400">Stop</span>
+                  </div>
+                </div>
               </div>
 
+              <!-- Briefing from Memory (When Applicable) -->
               <template x-if="brief && hasBrief()">
-                <div class="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-2 fade-in">
-                  <div class="flex items-center justify-between gap-2"><span class="text-sm font-medium text-violet-200">What GrantAnchor remembers</span><span class="text-[11px] text-zinc-500" x-text="brief.source === 'hindsight' ? 'from Hindsight memory' : 'from local memory'"></span></div>
+                <div class="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 space-y-2.5 fade-in">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-violet-200 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                      <span class="size-1.5 rounded-full bg-violet-400"></span>
+                      What GrantAnchor remembers
+                    </span>
+                    <span class="text-[10px] font-mono text-violet-300/80" x-text="brief.source === 'hindsight' ? 'from Hindsight memory' : 'from local memory'"></span>
+                  </div>
                   <template x-if="brief.suggested_approval && !form.prior_approval_ref">
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-zinc-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-neutral-200 bg-neutral-950 p-2.5 rounded-lg border border-violet-500/30">
                       <span class="flex-1" x-text="`Last time, ${brief.suggested_approval.vendor} was paid under funder approval ${brief.suggested_approval.ref} (${niceDate(brief.suggested_approval.when)}).`"></span>
-                      <button type="button" @click="form.prior_approval_ref = brief.suggested_approval.ref" class="shrink-0 rounded-lg px-3 py-1.5 text-xs bg-violet-400 text-zinc-950 font-semibold hover:bg-violet-300" x-text="`Use ${brief.suggested_approval.ref}`"></button>
+                      <button type="button" @click="form.prior_approval_ref = brief.suggested_approval.ref" class="shrink-0 rounded-lg px-3 py-1.5 text-xs bg-violet-400 text-neutral-950 font-bold hover:bg-violet-300 transition" x-text="`Use ${brief.suggested_approval.ref}`"></button>
                     </div>
                   </template>
                   <template x-if="brief.overrun">
-                    <p class="text-sm text-zinc-200"><span x-text="`${brief.overrun.spender}'s final invoices have come in ${brief.overrun.avg_pct}% above the checked amount (${brief.overrun.times} time${brief.overrun.times === 1 ? '' : 's'}).`"></span> <span class="text-amber-300" x-show="overrunRisk()" x-text="overrunRisk()"></span></p>
+                    <p class="text-xs text-neutral-200">
+                      <span x-text="`${brief.overrun.spender}'s final invoices have come in ${brief.overrun.avg_pct}% above the checked amount (${brief.overrun.times} time${brief.overrun.times === 1 ? '' : 's'}).`"></span>
+                      <span class="text-amber-300 font-semibold" x-show="overrunRisk()" x-text="overrunRisk()"></span>
+                    </p>
                   </template>
-                  <p x-show="brief.past_stops" class="text-sm text-zinc-300" x-text="`${brief.past_stops} earlier payment${brief.past_stops === 1 ? ' involving this vendor or person was' : 's involving this vendor or person were'} stopped.`"></p>
-                  <ul class="space-y-1"><template x-for="(m, i) in brief.memories.slice(0, 3)" :key="i"><li class="text-xs text-zinc-400"><span class="text-violet-300/80" x-text="`${ {decision: 'Stopped', approval: 'Approved', overrun: 'Overrun', expense: 'Expense'}[m.kind] || m.kind } · ${niceDate(m.when)}: `"></span><span x-text="m.text"></span></li></template></ul>
-                </div>
-              </template>
-              <template x-if="preview?.diff?.caught_by_memory?.length || preview?.diff?.status_changed">
-                <div class="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-                  <div class="text-sm font-medium text-sky-200">Memory changed the answer</div>
-                  <p class="text-sm text-zinc-300 mt-1">On its own, this expense looks <span class="font-medium" :class="tone(preview?.without_memory?.status).text" x-text="tone(preview?.without_memory?.status).short"></span>. GrantAnchor remembered what the team already spent:</p>
-                  <ul class="mt-2 space-y-1">
-                    <template x-for="e in (preview?.evidence || []).slice(0, 4)" :key="e.id">
-                      <li class="flex justify-between gap-3 text-xs text-zinc-400"><span class="truncate" x-text="`${niceDate(e.timestamp)} · ${e.spender} · ${e.vendor}`"></span><span class="num text-zinc-200 shrink-0" x-text="money(e.amount)"></span></li>
-                    </template>
-                  </ul>
-                </div>
-              </template>
-              <template x-if="!preview?.diff?.caught_by_memory?.length && !preview?.diff?.status_changed">
-                <p class="text-xs text-zinc-500">Checked against <span class="num" x-text="v().ledger_entries_considered"></span> past expenses. Nothing in the history changes this answer.</p>
-              </template>
-
-              <template x-if="v().findings.length">
-                <div>
-                  <div class="text-sm text-zinc-300 mb-2">Why</div>
-                  <ul class="space-y-2">
-                    <template x-for="f in v().findings" :key="f.rule_id + f.code">
-                      <li class="flex gap-3 rounded-lg p-3 text-sm" :class="f.severity === 'blocking' ? 'bg-rose-500/10 text-rose-100' : 'bg-amber-500/10 text-amber-100'">
-                        <span class="shrink-0 font-bold" :class="f.severity === 'blocking' ? 'text-rose-400' : 'text-amber-400'" x-text="f.severity === 'blocking' ? '✕' : '!'"></span>
-                        <span><span class="text-xs uppercase tracking-wide opacity-70" x-text="f.clause + ' · ' + (f.severity === 'blocking' ? 'blocks this' : 'heads up')"></span><br><span x-text="plain(f)"></span></span>
+                  <p x-show="brief.past_stops" class="text-xs text-neutral-300" x-text="`${brief.past_stops} earlier payment${brief.past_stops === 1 ? ' involving this vendor or person was' : 's involving this vendor or person were'} stopped.`"></p>
+                  <ul class="space-y-1">
+                    <template x-for="(m, i) in brief.memories.slice(0, 3)" :key="i">
+                      <li class="text-xs text-neutral-400">
+                        <span class="text-violet-300 font-mono" x-text="`${ {decision: 'Stopped', approval: 'Approved', overrun: 'Overrun', expense: 'Expense'}[m.kind] || m.kind } · ${niceDate(m.when)}: `"></span>
+                        <span x-text="m.text"></span>
                       </li>
                     </template>
                   </ul>
                 </div>
               </template>
 
+              <!-- Memory Changed The Answer Banner -->
+              <template x-if="preview?.diff?.caught_by_memory?.length || preview?.diff?.status_changed">
+                <div class="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 fade-in">
+                  <div class="text-xs font-bold text-sky-200 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                    <span class="size-1.5 rounded-full bg-sky-400"></span>
+                    Memory changed the answer
+                  </div>
+                  <p class="text-xs text-neutral-200 mt-1">On its own, this expense looks <span class="font-bold uppercase" :class="tone(preview?.without_memory?.status).text" x-text="tone(preview?.without_memory?.status).short"></span>. GrantAnchor remembered what the team already spent:</p>
+                  <ul class="mt-2.5 space-y-1.5">
+                    <template x-for="e in (preview?.evidence || []).slice(0, 4)" :key="e.id">
+                      <li class="flex justify-between gap-3 text-xs text-neutral-300 bg-neutral-950 p-2 rounded-lg border border-white/5">
+                        <span class="truncate font-medium" x-text="`${niceDate(e.timestamp)} · ${e.spender} · ${e.vendor}`"></span>
+                        <span class="num text-white font-bold shrink-0" x-text="money(e.amount)"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+              <template x-if="!preview?.diff?.caught_by_memory?.length && !preview?.diff?.status_changed">
+                <p class="text-xs text-neutral-400">Checked against <span class="num text-neutral-200 font-semibold" x-text="v().ledger_entries_considered"></span> past expenses. Nothing in the history changes this answer.</p>
+              </template>
+
+              <!-- Findings (Why) -->
+              <template x-if="v().findings.length">
+                <div>
+                  <div class="text-xs font-bold font-mono uppercase tracking-wider text-neutral-400 mb-2">Why</div>
+                  <ul class="space-y-2">
+                    <template x-for="f in v().findings" :key="f.rule_id + f.code">
+                      <li class="flex gap-3 rounded-xl p-3 text-xs" :class="f.severity === 'blocking' ? 'bg-rose-500/15 border border-rose-500/30 text-rose-100' : 'bg-amber-500/15 border border-amber-500/30 text-amber-100'">
+                        <span class="shrink-0 font-extrabold text-sm" :class="f.severity === 'blocking' ? 'text-rose-400' : 'text-amber-400'" x-text="f.severity === 'blocking' ? '✕' : '!'"></span>
+                        <div class="min-w-0">
+                          <span class="text-[10px] uppercase font-bold tracking-wider opacity-80 block font-mono" x-text="f.clause + ' · ' + (f.severity === 'blocking' ? 'blocks this' : 'heads up')"></span>
+                          <span class="font-medium text-xs leading-relaxed" x-text="plain(f)"></span>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+
+              <!-- Limit Impact Progress Bars -->
               <template x-if="topLimits().length">
                 <div>
-                  <div class="text-sm text-zinc-300 mb-2">What this does to your limits</div>
+                  <div class="text-xs font-bold font-mono uppercase tracking-wider text-neutral-400 mb-2">What this does to your limits</div>
                   <div class="space-y-3">
                     <template x-for="u in topLimits()" :key="u.rule_id">
-                      <div>
-                        <div class="flex justify-between text-xs text-zinc-400 gap-2"><span class="truncate" x-text="`${cap1(u.label)} (${u.window})`"></span><span class="num shrink-0" :class="u.pct_after > 100 ? 'text-rose-300' : u.pct_after >= u.warn_at_pct ? 'text-amber-300' : 'text-zinc-300'" x-text="`${money(u.projected)} of ${money(u.cap)}`"></span></div>
-                        <div class="relative mt-1.5 h-3 rounded-full bg-zinc-800 overflow-hidden flex">
-                          <div class="h-full bg-zinc-500" :style="`width:${seg(u).prior}%`" :title="'Already spent ' + money(u.prior)"></div>
-                          <div class="h-full" :class="u.pct_after > 100 ? 'bg-rose-500' : u.pct_after >= u.warn_at_pct ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${seg(u).add}%`" :title="'This expense ' + money(u.projected - u.prior)"></div>
-                          <div class="absolute top-0 bottom-0 w-0.5 bg-white/80" :style="`left:${seg(u).cap}%`" x-show="u.pct_after > 100"></div>
+                      <div class="p-2.5 rounded-xl bg-neutral-950 border border-neutral-850">
+                        <div class="flex justify-between text-xs text-neutral-300 gap-2 mb-1.5 font-medium">
+                          <span class="truncate" x-text="`${cap1(u.label)} (${u.window})`"></span>
+                          <span class="num shrink-0 font-bold" :class="u.pct_after > 100 ? 'text-rose-400' : u.pct_after >= u.warn_at_pct ? 'text-amber-400' : 'text-neutral-300'" x-text="`${money(u.projected)} of ${money(u.cap)}`"></span>
+                        </div>
+                        <div class="relative h-2.5 rounded-full bg-neutral-800 overflow-hidden flex">
+                          <div class="h-full bg-neutral-500 transition-all duration-300" :style="`width:${seg(u).prior}%`" :title="'Already spent ' + money(u.prior)"></div>
+                          <div class="h-full transition-all duration-300" :class="u.pct_after > 100 ? 'bg-rose-500' : u.pct_after >= u.warn_at_pct ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${seg(u).add}%`" :title="'This expense ' + money(u.projected - u.prior)"></div>
+                          <div class="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg" :style="`left:${seg(u).cap}%`" x-show="u.pct_after > 100"></div>
                         </div>
                       </div>
                     </template>
                   </div>
-                  <div class="flex gap-4 mt-2 text-[11px] text-zinc-500"><span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-zinc-500 inline-block"></i>Already spent</span><span class="flex items-center gap-1"><i class="w-2 h-2 rounded-sm bg-emerald-400 inline-block"></i>This expense</span><span x-show="topLimits().some(u => u.pct_after > 100)" class="flex items-center gap-1"><i class="w-0.5 h-3 bg-white/80 inline-block"></i>Limit</span></div>
+                  <div class="flex gap-4 mt-2 text-[11px] font-mono text-neutral-400">
+                    <span class="flex items-center gap-1.5"><i class="size-2 rounded-sm bg-neutral-500 inline-block"></i>Already spent</span>
+                    <span class="flex items-center gap-1.5"><i class="size-2 rounded-sm bg-emerald-400 inline-block"></i>This expense</span>
+                    <span x-show="topLimits().some(u => u.pct_after > 100)" class="flex items-center gap-1.5"><i class="w-0.5 h-3 bg-white inline-block"></i>Limit</span>
+                  </div>
                 </div>
               </template>
 
+              <!-- AI Second Opinion Card -->
               <template x-if="second">
-                <div class="rounded-xl border border-zinc-800 p-4 fade-in">
-                  <div class="flex items-center justify-between gap-2"><span class="text-sm text-zinc-300">AI second opinion</span><span class="text-[11px] text-zinc-500">Advisory · doesn't change the answer</span></div>
-                  <template x-if="second.with_memory.advisory.status !== 'ok'"><p class="text-sm text-zinc-500 mt-1" x-text="second.with_memory.advisory.status === 'disabled' ? 'AI review is turned off on this server.' : 'AI review was unavailable. The answer above is unaffected.'"></p></template>
-                  <template x-if="second.with_memory.advisory.status === 'ok' && !second.with_memory.advisory.findings.length"><p class="text-sm text-zinc-400 mt-1">No extra concerns.</p></template>
-                  <ul class="mt-2 space-y-1.5"><template x-for="(a, i) in second.with_memory.advisory.findings" :key="i"><li class="text-sm text-zinc-300"><span class="text-xs text-zinc-500" x-text="`${a.clause || 'Note'} · ${a.confidence} confidence: `"></span><span x-text="a.message"></span></li></template></ul>
-                  <p class="text-sm text-zinc-400 mt-2" x-show="second.with_memory.advisory.summary" x-text="second.with_memory.advisory.summary"></p>
-                  <p class="text-xs text-zinc-500 mt-2" x-show="second.recalled.length" x-text="`Used ${second.recalled.length} related memories from ${second.recalled[0]?.source === 'hindsight' ? 'Hindsight' : 'the local ledger'}.`"></p>
+                <div class="rounded-xl border border-sky-500/25 bg-sky-950/20 p-4 fade-in">
+                  <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
+                    <span class="text-xs font-bold text-sky-200 uppercase tracking-wider font-mono">AI second opinion</span>
+                    <span class="text-[10px] font-mono text-neutral-400">Advisory · doesn't change the answer</span>
+                  </div>
+                  <template x-if="second.with_memory.advisory.status !== 'ok'">
+                    <p class="text-xs text-neutral-400 mt-2" x-text="second.with_memory.advisory.status === 'disabled' ? 'AI review is turned off on this server.' : 'AI review was unavailable. The answer above is unaffected.'"></p>
+                  </template>
+                  <template x-if="second.with_memory.advisory.status === 'ok' && !second.with_memory.advisory.findings.length">
+                    <p class="text-xs text-neutral-300 mt-2 font-medium">No extra concerns.</p>
+                  </template>
+                  <ul class="mt-2 space-y-1.5">
+                    <template x-for="(a, i) in second.with_memory.advisory.findings" :key="i">
+                      <li class="text-xs text-neutral-200">
+                        <span class="text-sky-300 font-mono font-bold" x-text="`${a.clause || 'Note'} · ${a.confidence} confidence: `"></span>
+                        <span x-text="a.message"></span>
+                      </li>
+                    </template>
+                  </ul>
+                  <p class="text-xs text-neutral-300 mt-2" x-show="second.with_memory.advisory.summary" x-text="second.with_memory.advisory.summary"></p>
+                  <p class="text-[10px] text-neutral-500 mt-2 font-mono" x-show="second.recalled.length" x-text="`Used ${second.recalled.length} related memories from ${second.recalled[0]?.source === 'hindsight' ? 'Hindsight' : 'the local ledger'}.`"></p>
                 </div>
               </template>
 
-              <div class="flex-1"></div>
-              <div class="flex flex-col sm:flex-row gap-2">
-                <button type="button" @click="record()" :disabled="!!busy || !(canRecord() || canNoteStop())" class="flex-1 rounded-lg py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'bg-emerald-400 hover:bg-emerald-300 text-zinc-950 focus:ring-emerald-200' : canNoteStop() ? 'border border-rose-500/50 text-rose-200 hover:bg-rose-500/10 focus:ring-rose-400' : 'bg-zinc-800 text-zinc-500'" x-text="recordLabel()"></button>
-                <button type="button" @click="secondOpinion()" :disabled="!!busy || !formReady()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'second' ? 'Thinking…' : 'Ask AI for a second opinion'"></button>
-                <button type="button" x-show="v().status === 'CLAWBACK_RISK_DETECTED'" @click="openDraft()" class="rounded-lg px-4 py-2.5 text-sm border border-zinc-700 hover:bg-zinc-900">Draft approval request</button>
+              <!-- Sticky CTAs Bottom -->
+              <div class="pt-3 flex flex-col sm:flex-row gap-2">
+                <button type="button" @click="record()" :disabled="!!busy || !(canRecord() || canNoteStop())" class="flex-1 rounded-xl py-3 text-sm font-bold transition-all duration-200 focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'shimmer-button text-neutral-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] focus:ring-emerald-300' : canNoteStop() ? 'border border-rose-500/50 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 focus:ring-rose-400' : 'bg-neutral-800 text-neutral-500'" x-text="recordLabel()"></button>
+                <button type="button" @click="secondOpinion()" :disabled="!!busy || !formReady()" class="rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 disabled:opacity-50 transition" x-text="busy === 'second' ? 'Thinking…' : 'Ask AI for a second opinion'"></button>
+                <button type="button" x-show="v().status === 'CLAWBACK_RISK_DETECTED'" @click="openDraft()" class="rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border border-neutral-800 hover:bg-neutral-900 text-neutral-200 transition">Draft approval request</button>
               </div>
             </div>
           </template>
         </div>
       </div>
 
+      <!-- Spending Limits & Timeline Charts -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="card p-5 lg:col-span-5">
-          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Spending limits</h2><span class="text-xs text-zinc-500">as of today</span></div>
+        <!-- Guardrails -->
+        <div class="card p-6 lg:col-span-5">
+          <div class="flex items-baseline justify-between border-b border-white/5 pb-3">
+            <h2 class="text-base font-bold text-white tracking-tight">Spending limits</h2>
+            <span class="text-xs text-neutral-500 font-mono">as of today</span>
+          </div>
           <div class="mt-4 space-y-4">
             <template x-for="g in dash.guardrails || []" :key="g.rule_id">
-              <div>
-                <div class="flex justify-between gap-3 text-sm"><span class="text-zinc-300 truncate" x-text="cap1(g.label)"></span><span class="num text-xs shrink-0" :class="g.state === 'over' ? 'text-rose-300' : g.state === 'warn' ? 'text-amber-300' : 'text-zinc-400'" x-text="`${money(g.used)} / ${money(g.cap)}`"></span></div>
-                <div class="mt-1.5 h-2 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full rounded-full" :class="g.state === 'over' ? 'bg-rose-500' : g.state === 'warn' ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${Math.min(100, g.pct)}%`"></div></div>
-                <div class="mt-1 text-[11px] text-zinc-500" x-text="`${g.clause} · ${g.window} · ${g.headroom >= 0 ? money(g.headroom) + ' left' : money(-g.headroom) + ' over'}`"></div>
+              <div class="p-3 rounded-xl bg-neutral-950/80 border border-neutral-850">
+                <div class="flex justify-between gap-3 text-xs font-semibold">
+                  <span class="text-neutral-200 truncate" x-text="cap1(g.label)"></span>
+                  <span class="num shrink-0 font-bold" :class="g.state === 'over' ? 'text-rose-400' : g.state === 'warn' ? 'text-amber-400' : 'text-neutral-400'" x-text="`${money(g.used)} / ${money(g.cap)}`"></span>
+                </div>
+                <div class="mt-2 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500" :class="g.state === 'over' ? 'bg-rose-500' : g.state === 'warn' ? 'bg-amber-400' : 'bg-emerald-400'" :style="`width:${Math.min(100, g.pct)}%`"></div>
+                </div>
+                <div class="mt-1.5 text-[11px] font-mono text-neutral-500 flex justify-between" x-text="`${g.clause} · ${g.window} · ${g.headroom >= 0 ? money(g.headroom) + ' left' : money(-g.headroom) + ' over'}`"></div>
               </div>
             </template>
-            <p x-show="!(dash.guardrails || []).length" class="text-sm text-zinc-500">This grant has no spending caps set up.</p>
+            <p x-show="!(dash.guardrails || []).length" class="text-xs text-neutral-500 py-6 text-center">This grant has no spending caps set up.</p>
           </div>
         </div>
-        <div class="card p-5 lg:col-span-7">
-          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Spending by month</h2><span class="text-xs text-zinc-500">hover a bar for details</span></div>
-          <div class="mt-6 h-64 flex items-end gap-1.5 overflow-x-auto scroll" role="img" aria-label="Monthly spending chart">
+
+        <!-- Monthly Timeline Chart -->
+        <div class="card p-6 lg:col-span-7">
+          <div class="flex items-baseline justify-between border-b border-white/5 pb-3">
+            <h2 class="text-base font-bold text-white tracking-tight">Spending by month</h2>
+            <span class="text-xs text-neutral-500 font-mono">hover a bar for details</span>
+          </div>
+          <div class="mt-6 h-64 flex items-end gap-2 overflow-x-auto scroll pb-2" role="img" aria-label="Monthly spending chart">
             <template x-for="mo in dash.timeline || []" :key="mo.month">
-              <div class="flex-1 min-w-[18px] h-full flex flex-col group relative">
-                <div class="absolute left-1/2 -translate-x-1/2 -top-6 hidden group-hover:block z-10 whitespace-nowrap card px-2 py-1 text-[11px]" x-text="`${monthName(mo.month)}: ${money(sumObj(mo.by_category))}`"></div>
+              <div class="flex-1 min-w-[22px] h-full flex flex-col group relative">
+                <div class="absolute left-1/2 -translate-x-1/2 -top-8 hidden group-hover:block z-20 whitespace-nowrap card px-2.5 py-1 text-[11px] font-mono font-semibold text-white shadow-xl pointer-events-none" x-text="`${monthName(mo.month)}: ${money(sumObj(mo.by_category))}`"></div>
                 <div class="flex-1 flex flex-col justify-end">
                   <template x-for="c in Object.keys(mo.by_category)" :key="c">
-                    <div class="w-full first:rounded-t" :style="`height:${mo.by_category[c] / maxMonth() * 100}%; background:${catColor(c)}`" :title="`${c}: ${money(mo.by_category[c])}`"></div>
+                    <div class="w-full first:rounded-t transition-all group-hover:brightness-125" :style="`height:${mo.by_category[c] / maxMonth() * 100}%; background:${catColor(c)}`" :title="`${c}: ${money(mo.by_category[c])}`"></div>
                   </template>
                 </div>
-                <div class="text-[10px] text-zinc-500 text-center mt-1" x-text="monthShort(mo.month)"></div>
+                <div class="text-[10px] font-mono text-neutral-500 text-center mt-2" x-text="monthShort(mo.month)"></div>
               </div>
             </template>
           </div>
-          <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
-            <template x-for="c in Object.keys(dash.by_category || {})" :key="c"><span class="flex items-center gap-1.5"><i class="w-2.5 h-2.5 rounded-sm inline-block" :style="`background:${catColor(c)}`"></i><span x-text="c"></span></span></template>
+          <div class="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-400 pt-3 border-t border-white/5 font-mono">
+            <template x-for="c in Object.keys(dash.by_category || {})" :key="c">
+              <span class="flex items-center gap-1.5">
+                <i class="size-2 rounded-sm inline-block" :style="`background:${catColor(c)}`"></i>
+                <span x-text="c"></span>
+              </span>
+            </template>
           </div>
         </div>
       </div>
 
+      <!-- Donut, Spenders & Recent Activity -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="card p-5">
-          <h2 class="text-base font-semibold text-white">Where the money went</h2>
-          <div class="mt-4 flex items-center gap-5">
-            <div class="w-32 h-32 shrink-0 rounded-full grid place-items-center" role="img" aria-label="Spending by category" :style="`background:${donutGradient()}`">
-              <div class="w-20 h-20 rounded-full bg-[#111113] grid place-items-center text-center"><div><div class="num text-sm text-white" x-text="money(dash.spent)"></div><div class="text-[10px] text-zinc-500">spent</div></div></div>
+        <!-- Donut Chart -->
+        <div class="card p-6">
+          <h2 class="text-base font-bold text-white tracking-tight border-b border-white/5 pb-3">Where the money went</h2>
+          <div class="mt-5 flex items-center gap-5">
+            <div class="size-32 shrink-0 rounded-full grid place-items-center shadow-lg relative" role="img" aria-label="Spending by category" :style="`background:${donutGradient()}`">
+              <div class="size-20 rounded-full bg-neutral-950 border border-neutral-800 grid place-items-center text-center shadow-inner">
+                <div>
+                  <div class="num text-sm font-extrabold text-white" x-text="money(dash.spent)"></div>
+                  <div class="text-[10px] text-neutral-500 uppercase tracking-wider font-mono font-semibold">spent</div>
+                </div>
+              </div>
             </div>
             <ul class="space-y-1.5 text-xs min-w-0 flex-1">
-              <template x-for="s in donut().slice(0, 7)" :key="s.c"><li class="flex justify-between gap-2"><span class="flex items-center gap-1.5 truncate"><i class="w-2 h-2 rounded-sm inline-block shrink-0" :style="`background:${catColor(s.c)}`"></i><span x-text="s.c" class="truncate"></span></span><span class="num text-zinc-400" x-text="Math.round(s.pct) + '%'"></span></li></template>
+              <template x-for="s in donut().slice(0, 7)" :key="s.c">
+                <li class="flex justify-between items-center gap-2">
+                  <span class="flex items-center gap-1.5 truncate text-neutral-300">
+                    <i class="size-2 rounded-sm inline-block shrink-0" :style="`background:${catColor(s.c)}`"></i>
+                    <span x-text="s.c" class="truncate font-medium"></span>
+                  </span>
+                  <span class="num text-neutral-400 font-semibold" x-text="Math.round(s.pct) + '%'"></span>
+                </li>
+              </template>
             </ul>
           </div>
         </div>
-        <div class="card p-5">
-          <h2 class="text-base font-semibold text-white">Who spent it</h2>
-          <ul class="mt-4 space-y-3">
+
+        <!-- Spenders Breakdown -->
+        <div class="card p-6">
+          <h2 class="text-base font-bold text-white tracking-tight border-b border-white/5 pb-3">Who spent it</h2>
+          <ul class="mt-5 space-y-3.5">
             <template x-for="[name, amt] in Object.entries(dash.by_spender || {})" :key="name">
-              <li><div class="flex justify-between text-sm"><span class="text-zinc-300" x-text="name"></span><span class="num text-zinc-400 text-xs" x-text="money(amt)"></span></div><div class="mt-1 h-1.5 rounded-full bg-zinc-800"><div class="h-full rounded-full bg-violet-400" :style="`width:${amt / maxSpender() * 100}%`"></div></div></li>
+              <li class="p-2.5 rounded-xl bg-neutral-950 border border-neutral-850">
+                <div class="flex justify-between text-xs font-semibold">
+                  <span class="text-neutral-200" x-text="name"></span>
+                  <span class="num text-neutral-400" x-text="money(amt)"></span>
+                </div>
+                <div class="mt-2 h-1.5 rounded-full bg-neutral-800">
+                  <div class="h-full rounded-full bg-violet-400" :style="`width:${amt / maxSpender() * 100}%`"></div>
+                </div>
+              </li>
             </template>
           </ul>
         </div>
-        <div class="card p-5">
-          <div class="flex items-baseline justify-between"><h2 class="text-base font-semibold text-white">Recent activity</h2><button type="button" class="text-xs text-emerald-300 hover:underline" @click="openTab('ledger')">See all</button></div>
+
+        <!-- Recent Activity Feed -->
+        <div class="card p-6">
+          <div class="flex items-baseline justify-between border-b border-white/5 pb-3">
+            <h2 class="text-base font-bold text-white tracking-tight">Recent activity</h2>
+            <button type="button" class="text-xs text-emerald-400 hover:underline font-mono font-semibold" @click="openTab('ledger')">See all</button>
+          </div>
           <ul class="mt-4 space-y-3">
             <template x-for="m in recent()" :key="m.id">
-              <li class="flex justify-between gap-3 text-sm"><div class="min-w-0"><div class="text-zinc-200 truncate" x-text="m.vendor"></div><div class="text-xs text-zinc-500" x-text="`${niceDate(m.timestamp)} · ${m.spender} · ${m.category}`"></div></div><span class="num text-zinc-300 shrink-0" x-text="money(m.amount)"></span></li>
+              <li class="flex justify-between items-center gap-3 text-xs p-2 rounded-lg hover:bg-neutral-900 transition">
+                <div class="min-w-0">
+                  <div class="text-neutral-200 font-medium truncate" x-text="m.vendor"></div>
+                  <div class="text-[11px] text-neutral-500 font-mono truncate mt-0.5" x-text="`${niceDate(m.timestamp)} · ${m.spender} · ${m.category}`"></div>
+                </div>
+                <span class="num text-white font-bold shrink-0 text-sm" x-text="money(m.amount)"></span>
+              </li>
             </template>
-            <li x-show="!recent().length" class="text-sm text-zinc-500">Nothing recorded yet.</li>
+            <li x-show="!recent().length" class="text-xs text-neutral-500 py-6 text-center">Nothing recorded yet.</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <!-- LEDGER -->
+    <!-- LEDGER TAB -->
     <section x-show="!booting && hasGrants() && tab === 'ledger'" x-cloak class="space-y-4 fade-in">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div><h2 class="text-lg font-semibold text-white">Ledger</h2><p class="text-sm text-zinc-400">Every recorded expense. Stored in the workspace database and copied to Hindsight memory.</p></div>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-white/5 pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-tight">Ledger</h2>
+          <p class="text-xs text-neutral-400 mt-0.5">Every recorded expense. Stored in the workspace database and copied to Hindsight memory.</p>
+        </div>
         <div class="flex-1"></div>
-        <button type="button" @click="syncAll()" :disabled="busy === 'sync'" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'sync' ? 'Syncing…' : `Sync to Hindsight (${unsynced()} waiting)`"></button>
-        <a :href="`/api/ledger.csv?grant_id=${encodeURIComponent(grantId)}`" class="rounded-lg px-3 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white text-center">Export CSV</a>
+        <div class="flex items-center gap-2">
+          <button type="button" @click="syncAll()" :disabled="busy === 'sync'" class="rounded-lg px-3 py-2 text-xs font-mono font-semibold border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 transition disabled:opacity-50" x-text="busy === 'sync' ? 'Syncing…' : `Sync to Hindsight (${unsynced()} waiting)`"></button>
+          <a :href="`/api/ledger.csv?grant_id=${encodeURIComponent(grantId)}`" class="rounded-lg px-3.5 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition">Export CSV</a>
+        </div>
       </div>
+
+      <!-- Filters -->
       <div class="flex flex-col sm:flex-row gap-2">
-        <input x-model="ledgerQ" @input.debounce.300ms="loadLedger()" class="field sm:max-w-xs" aria-label="Search ledger" />
-        <select x-model="ledgerCat" @change="loadLedger()" class="field sm:max-w-[12rem]" aria-label="Filter by category"><option value="">All categories</option><template x-for="c in categoryOptions()" :key="c"><option :value="c" x-text="c"></option></template></select>
+        <input x-model="ledgerQ" @input.debounce.300ms="loadLedger()" placeholder="Search payee, notes..." class="field sm:max-w-xs text-xs font-mono" aria-label="Search ledger" />
+        <select x-model="ledgerCat" @change="loadLedger()" class="field sm:max-w-[12rem] text-xs cursor-pointer" aria-label="Filter by category">
+          <option value="">All categories</option>
+          <template x-for="c in categoryOptions()" :key="c"><option :value="c" x-text="c"></option></template>
+        </select>
       </div>
-      <div class="card overflow-x-auto scroll">
-        <table class="w-full text-sm min-w-[720px]">
-          <thead class="text-xs text-zinc-500 text-left"><tr class="border-b border-zinc-800"><th class="px-4 py-3 font-medium">Date</th><th class="px-4 py-3 font-medium">Paid to</th><th class="px-4 py-3 font-medium">By</th><th class="px-4 py-3 font-medium">Category</th><th class="px-4 py-3 font-medium text-right">Amount</th><th class="px-4 py-3 font-medium">Memory</th><th class="px-4 py-3"><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody>
+
+      <!-- Modern Fintech Table -->
+      <div class="card overflow-x-auto scroll border border-neutral-800">
+        <table class="w-full text-sm min-w-[720px] text-left">
+          <thead class="text-xs uppercase font-mono font-semibold text-neutral-400 bg-neutral-950 border-b border-neutral-800">
+            <tr>
+              <th class="px-4 py-3">Date</th>
+              <th class="px-4 py-3">Paid to</th>
+              <th class="px-4 py-3">By</th>
+              <th class="px-4 py-3">Category</th>
+              <th class="px-4 py-3 text-right">Amount</th>
+              <th class="px-4 py-3">Memory</th>
+              <th class="px-4 py-3 text-right"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-850">
             <template x-for="m in ledger.items" :key="m.id">
-              <tr class="border-b border-zinc-800/60 hover:bg-zinc-900/60">
-                <td class="px-4 py-3 text-zinc-400 whitespace-nowrap num text-xs" x-text="niceDate(m.timestamp)"></td>
-                <td class="px-4 py-3"><div class="text-zinc-200" x-text="m.vendor"></div><div class="text-xs text-zinc-500 truncate max-w-xs" x-text="m.location || ''"></div></td>
-                <td class="px-4 py-3 text-zinc-300" x-text="m.spender"></td>
-                <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><i class="w-2 h-2 rounded-sm inline-block" :style="`background:${catColor(m.category)}`"></i><span x-text="m.category"></span></span></td>
-                <td class="px-4 py-3 text-right num text-zinc-100"><span x-text="money(m.amount)"></span><span x-show="m.fx" class="block text-[11px] text-zinc-500" x-text="m.fx ? money(m.fx.original_amount, m.fx.original_currency) : ''"></span><span x-show="m.edits && m.edits.length" class="block text-[10px] text-zinc-500 font-sans" :title="lastEdit(m)">edited</span></td>
-                <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded-full" :class="syncBadge(m.sync_status).cls" :title="m.sync_error || ''" x-text="syncBadge(m.sync_status).label"></span></td>
-                <td class="px-4 py-3 text-right whitespace-nowrap">
-                  <button type="button" x-show="(m.sync_status === 'failed' || m.sync_status === 'pending') && health.hindsight?.status !== 'disabled'" @click="resync(m)" class="text-xs text-sky-300 hover:underline mr-3">Retry</button>
-                  <button type="button" @click="openEdit(m)" class="text-xs text-zinc-300 hover:text-white mr-3">Edit</button>
-                  <button type="button" @click="askDelete(m)" class="text-xs text-zinc-400 hover:text-rose-300">Remove</button>
+              <tr class="hover:bg-neutral-900/40 transition">
+                <td class="px-4 py-3 text-neutral-400 whitespace-nowrap num text-xs" x-text="niceDate(m.timestamp)"></td>
+                <td class="px-4 py-3">
+                  <div class="text-neutral-100 font-semibold" x-text="m.vendor"></div>
+                  <div class="text-xs text-neutral-500 truncate max-w-xs mt-0.5" x-text="m.location || ''"></div>
+                </td>
+                <td class="px-4 py-3 text-neutral-300 font-medium" x-text="m.spender"></td>
+                <td class="px-4 py-3">
+                  <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 font-medium text-neutral-200">
+                    <i class="size-2 rounded-full inline-block" :style="`background:${catColor(m.category)}`"></i>
+                    <span x-text="m.category"></span>
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right num text-white font-bold">
+                  <span x-text="money(m.amount)"></span>
+                  <span x-show="m.fx" class="block text-[11px] text-neutral-500 font-normal" x-text="m.fx ? money(m.fx.original_amount, m.fx.original_currency) : ''"></span>
+                  <span x-show="m.edits && m.edits.length" class="block text-[10px] text-amber-400 font-mono uppercase" :title="lastEdit(m)">edited</span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-xs font-mono font-medium px-2 py-0.5 rounded-full border inline-block" :class="syncBadge(m.sync_status).cls" :title="m.sync_error || ''" x-text="syncBadge(m.sync_status).label"></span>
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap text-xs font-medium">
+                  <button type="button" x-show="(m.sync_status === 'failed' || m.sync_status === 'pending') && health.hindsight?.status !== 'disabled'" @click="resync(m)" class="text-sky-400 hover:underline mr-3">Retry</button>
+                  <button type="button" @click="openEdit(m)" class="text-neutral-300 hover:text-white mr-3">Edit</button>
+                  <button type="button" @click="askDelete(m)" class="text-neutral-400 hover:text-rose-400">Remove</button>
                 </td>
               </tr>
             </template>
-            <tr x-show="!ledger.items.length"><td colspan="7" class="px-4 py-10 text-center text-zinc-500">No expenses match.</td></tr>
+            <tr x-show="!ledger.items.length">
+              <td colspan="7" class="px-4 py-10 text-center text-neutral-500 text-sm">No expenses match.</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div class="text-xs text-zinc-500" x-text="`${ledger.items.length} of ${ledger.total} shown`"></div>
+      <div class="text-xs text-neutral-500 font-mono" x-text="`${ledger.items.length} of ${ledger.total} shown`"></div>
     </section>
 
-    <!-- MEMORY -->
+    <!-- ASK MEMORY TAB -->
     <section x-show="!booting && hasGrants() && tab === 'memory'" x-cloak class="space-y-4 fade-in max-w-3xl">
-      <div><h2 class="text-lg font-semibold text-white">Ask memory</h2><p class="text-sm text-zinc-400">Search the team's spending history in plain words. Answers come from <span class="text-zinc-200">Hindsight</span> semantic memory when it's connected, and from the local ledger otherwise.</p></div>
+      <div>
+        <h2 class="text-lg font-bold text-white tracking-tight">Ask memory</h2>
+        <p class="text-xs sm:text-sm text-neutral-400 mt-1">Search the team's spending history in plain words. Answers come from <span class="text-neutral-200 font-medium">Hindsight</span> semantic memory when it's connected, and from the local ledger otherwise.</p>
+      </div>
+
       <form class="flex gap-2" @submit.prevent="ask()">
-        <input x-model="memQ" class="field" aria-label="Question" />
-        <button type="submit" :disabled="busy === 'ask' || !memQ.trim()" class="rounded-lg px-4 text-sm font-semibold bg-emerald-400 text-zinc-950 hover:bg-emerald-300 disabled:opacity-50" x-text="busy === 'ask' ? 'Searching…' : 'Ask'"></button>
+        <input x-model="memQ" placeholder="e.g. flights to Tokyo, robotics summit costs..." class="field text-sm" aria-label="Question" />
+        <button type="submit" :disabled="busy === 'ask' || !memQ.trim()" class="shimmer-button rounded-xl px-5 text-sm font-bold text-neutral-950 disabled:opacity-50 transition shadow-sm" x-text="busy === 'ask' ? 'Searching…' : 'Ask'"></button>
       </form>
-      <div class="flex flex-wrap gap-2"><template x-for="s in suggestions()" :key="s"><button type="button" @click="memQ = s; ask()" class="text-xs px-3 py-1.5 rounded-full border border-zinc-700 text-zinc-400 hover:text-zinc-200" x-text="s"></button></template></div>
+
+      <div class="flex flex-wrap gap-2">
+        <template x-for="s in suggestions()" :key="s">
+          <button type="button" @click="memQ = s; ask()" class="text-xs px-3 py-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:text-white hover:bg-neutral-800 transition" x-text="s"></button>
+        </template>
+      </div>
+
       <template x-if="memRes">
-        <div class="space-y-2 fade-in">
-          <div class="text-xs text-zinc-500" x-text="`${memRes.items.length} matching expense${memRes.items.length === 1 ? '' : 's'} · ${memRes.source === 'hindsight' ? 'from Hindsight memory' : 'from the ledger'} · only entries that are in the ledger now`"></div>
+        <div class="space-y-2.5 fade-in pt-2">
+          <div class="text-xs text-neutral-500 font-mono" x-text="`${memRes.items.length} matching expense${memRes.items.length === 1 ? '' : 's'} · ${memRes.source === 'hindsight' ? 'from Hindsight memory' : 'from the ledger'} · only entries that are in the ledger now`"></div>
           <template x-for="(r, i) in memRes.items" :key="i">
-            <div class="card p-4"><div class="flex justify-between gap-3"><p class="text-sm text-zinc-200" x-text="r.content"></p><span class="num text-sm text-zinc-300 shrink-0" x-show="r.amount" x-text="money(r.amount)"></span></div><div class="mt-1 text-xs text-zinc-500" x-text="[r.timestamp ? niceDate(r.timestamp) : '', r.spender, r.category, r.source === 'hindsight' ? 'found by Hindsight' : 'found in ledger'].filter(Boolean).join(' · ')"></div><p x-show="r.snippet && r.snippet !== r.content" class="mt-2 text-xs text-sky-300/80" x-text="'Hindsight remembered: ' + r.snippet"></p></div>
+            <div class="card p-4">
+              <div class="flex justify-between gap-3">
+                <p class="text-sm font-medium text-neutral-200" x-text="r.content"></p>
+                <span class="num text-sm font-bold text-white shrink-0" x-show="r.amount" x-text="money(r.amount)"></span>
+              </div>
+              <div class="mt-1 text-xs text-neutral-500 font-mono" x-text="[r.timestamp ? niceDate(r.timestamp) : '', r.spender, r.category, r.source === 'hindsight' ? 'found by Hindsight' : 'found in ledger'].filter(Boolean).join(' · ')"></div>
+              <p x-show="r.snippet && r.snippet !== r.content" class="mt-2 text-xs text-sky-400 bg-sky-500/10 p-2 rounded-lg border border-sky-500/20 font-mono" x-text="'Hindsight remembered: ' + r.snippet"></p>
+            </div>
           </template>
-          <p x-show="!memRes.items.length" class="text-sm text-zinc-500">Nothing found. Try different words.</p>
+          <p x-show="!memRes.items.length" class="text-sm text-neutral-500 py-6 text-center">Nothing found. Try different words.</p>
         </div>
       </template>
     </section>
 
-    <!-- HISTORY -->
+    <!-- CHECK HISTORY TAB -->
     <section x-show="!booting && hasGrants() && tab === 'history'" x-cloak class="space-y-4 fade-in">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div><h2 class="text-lg font-semibold text-white">Check history</h2><p class="text-sm text-zinc-400">Every check anyone ran, what the answer was, and why.</p></div>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-white/5 pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-tight">Check history</h2>
+          <p class="text-xs text-neutral-400 mt-0.5">Every check anyone ran, what the answer was, and why.</p>
+        </div>
         <div class="flex-1"></div>
-        <select x-model="histFilter" class="field sm:max-w-[14rem]" aria-label="Filter history"><option value="">All answers</option><option value="APPROVED">Good to go</option><option value="APPROVED_WITH_WARNINGS">Careful</option><option value="CLAWBACK_RISK_DETECTED">Stopped</option></select>
+        <select x-model="histFilter" class="field sm:max-w-[14rem] cursor-pointer text-xs" aria-label="Filter history">
+          <option value="">All answers</option>
+          <option value="APPROVED">Good to go</option>
+          <option value="APPROVED_WITH_WARNINGS">Careful</option>
+          <option value="CLAWBACK_RISK_DETECTED">Stopped</option>
+        </select>
       </div>
+
       <div class="space-y-2">
         <template x-for="h in history.filter(h => !histFilter || h.status === histFilter)" :key="h.id">
-          <details class="card p-4">
+          <details class="card p-4 group">
             <summary class="flex items-center gap-3 cursor-pointer list-none">
-              <span class="w-7 h-7 rounded-lg grid place-items-center text-xs font-bold shrink-0" :class="['delete', 'grant'].includes(h.kind) ? 'bg-zinc-800 text-zinc-400' : tone(h.status).chip" x-text="{ delete: '−', grant: '⚙', edit: '✎' }[h.kind] || tone(h.status).icon"></span>
-              <div class="min-w-0 flex-1"><div class="text-sm text-zinc-200 truncate" x-text="historyTitle(h)"></div><div class="text-xs text-zinc-500" x-text="historySub(h)"></div></div>
-              <span class="num text-sm text-zinc-300 shrink-0" x-text="h.amount != null ? money(h.amount) : ''"></span>
-              <span class="num text-xs shrink-0 w-8 text-right" :class="riskColor(h.risk_score)" x-text="h.risk_score ?? ''"></span>
+              <span class="size-7 rounded-lg grid place-items-center text-xs font-bold shrink-0" :class="['delete', 'grant'].includes(h.kind) ? 'bg-neutral-800 text-neutral-400' : tone(h.status).chip" x-text="{ delete: '−', grant: '⚙', edit: '✎' }[h.kind] || tone(h.status).icon"></span>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-semibold text-neutral-200 truncate" x-text="historyTitle(h)"></div>
+                <div class="text-xs text-neutral-500 font-mono mt-0.5" x-text="historySub(h)"></div>
+              </div>
+              <span class="num text-sm font-bold text-white shrink-0" x-text="h.amount != null ? money(h.amount) : ''"></span>
+              <span class="num text-xs shrink-0 w-8 text-right font-bold" :class="riskColor(h.risk_score)" x-text="h.risk_score ?? ''"></span>
             </summary>
-            <ul class="mt-3 space-y-1.5 pl-10">
-              <template x-for="(f, i) in h.findings || []" :key="i"><li class="text-xs" :class="f.severity === 'blocking' ? 'text-rose-300' : 'text-amber-300'" x-text="`${f.clause}: ${f.message}`"></li></template>
-              <li x-show="h.reason && h.kind !== 'grant'" class="text-xs text-zinc-400" x-text="'Reason: ' + h.reason"></li>
-              <template x-for="(v, k) in Object.fromEntries(Object.entries(h.changes || {}).filter(([k]) => k !== 'fx'))" :key="k"><li class="text-xs text-zinc-400" x-text="`${k === 'timestamp' ? 'date' : k}: ${fmtVal(k, v[0])} → ${fmtVal(k, v[1])}`"></li></template>
-              <li x-show="!['delete', 'grant'].includes(h.kind) && !(h.findings || []).length" class="text-xs text-zinc-500">No issues found.</li>
+            <ul class="mt-3 space-y-1.5 pl-10 border-t border-white/5 pt-2.5">
+              <template x-for="(f, i) in h.findings || []" :key="i">
+                <li class="text-xs" :class="f.severity === 'blocking' ? 'text-rose-300' : 'text-amber-300'" x-text="`${f.clause}: ${f.message}`"></li>
+              </template>
+              <li x-show="h.reason && h.kind !== 'grant'" class="text-xs text-neutral-400" x-text="'Reason: ' + h.reason"></li>
+              <template x-for="(v, k) in Object.fromEntries(Object.entries(h.changes || {}).filter(([k]) => k !== 'fx'))" :key="k">
+                <li class="text-xs text-neutral-400 font-mono" x-text="`${k === 'timestamp' ? 'date' : k}: ${fmtVal(k, v[0])} → ${fmtVal(k, v[1])}`"></li>
+              </template>
+              <li x-show="!['delete', 'grant'].includes(h.kind) && !(h.findings || []).length" class="text-xs text-neutral-500">No issues found.</li>
             </ul>
           </details>
         </template>
-        <p x-show="!history.length" class="text-sm text-zinc-500 py-10 text-center">No checks yet. Record an expense or ask for a second opinion from the Overview tab.</p>
+        <p x-show="!history.length" class="text-sm text-neutral-500 py-10 text-center">No checks yet. Record an expense or ask for a second opinion from the Overview tab.</p>
       </div>
     </section>
 
-    <!-- GRANT SETUP -->
+    <!-- GRANT SETUP TAB -->
     <section x-show="!booting && hasGrants() && tab === 'setup'" x-cloak class="space-y-6 fade-in max-w-5xl">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div><h2 class="text-lg font-semibold text-white">Grant setup</h2><p class="text-sm text-zinc-400">The details and rules GrantAnchor checks every expense against. Changes apply to the next check.</p></div>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-white/5 pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-tight">Grant setup</h2>
+          <p class="text-xs text-neutral-400 mt-0.5">The details and rules GrantAnchor checks every expense against. Changes apply to the next check.</p>
+        </div>
         <div class="flex-1"></div>
-        <button type="button" @click="openNewGrant()" class="rounded-lg px-3 py-2 text-sm bg-emerald-400 text-zinc-950 font-semibold hover:bg-emerald-300">New grant</button>
+        <button type="button" @click="openNewGrant()" class="rounded-xl px-4 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition">New grant</button>
       </div>
 
+      <!-- Details Form -->
       <form class="card p-5 grid grid-cols-1 sm:grid-cols-6 gap-3" @submit.prevent="saveDetails()">
-        <div class="sm:col-span-6 flex items-center justify-between"><h3 class="text-sm font-medium text-zinc-200">Details</h3><span class="text-xs text-zinc-500 num" x-text="grantId"></span></div>
-        <div class="sm:col-span-3"><label for="g-name" class="block text-sm text-zinc-300 mb-1.5">Grant name</label><input id="g-name" x-model="gEdit.name" class="field" required /></div>
-        <div class="sm:col-span-2"><label for="g-amt" class="block text-sm text-zinc-300 mb-1.5">Total award</label><input id="g-amt" type="number" min="1" step="0.01" x-model.number="gEdit.total_funding" class="field num" required /></div>
-        <div><label for="g-cur" class="block text-sm text-zinc-300 mb-1.5">Currency</label><input id="g-cur" x-model="gEdit.currency" maxlength="3" class="field uppercase" required /></div>
-        <div class="sm:col-span-2"><label for="g-start" class="block text-sm text-zinc-300 mb-1.5">Starts</label><input id="g-start" type="date" x-model="gEdit.start_date" class="field" required /></div>
-        <div class="sm:col-span-2"><label for="g-end" class="block text-sm text-zinc-300 mb-1.5">Ends</label><input id="g-end" type="date" x-model="gEdit.end_date" class="field" required /></div>
-        <div class="sm:col-span-2"><label for="g-home" class="block text-sm text-zinc-300 mb-1.5">Home country (ISO code)</label><input id="g-home" x-model="gEdit.home_country" maxlength="2" class="field uppercase" /></div>
+        <div class="sm:col-span-6 flex items-center justify-between border-b border-white/5 pb-2">
+          <h3 class="text-sm font-bold text-white">Details</h3>
+          <span class="text-xs text-neutral-500 num font-mono" x-text="grantId"></span>
+        </div>
+        <div class="sm:col-span-3">
+          <label for="g-name" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Grant name</label>
+          <input id="g-name" x-model="gEdit.name" class="field" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="g-amt" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Total award</label>
+          <input id="g-amt" type="number" min="1" step="0.01" x-model.number="gEdit.total_funding" class="field num font-bold" required />
+        </div>
+        <div>
+          <label for="g-cur" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Currency</label>
+          <input id="g-cur" x-model="gEdit.currency" maxlength="3" class="field uppercase font-mono font-bold" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="g-start" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Starts</label>
+          <input id="g-start" type="date" x-model="gEdit.start_date" class="field font-mono" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="g-end" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Ends</label>
+          <input id="g-end" type="date" x-model="gEdit.end_date" class="field font-mono" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="g-home" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Home country (ISO code)</label>
+          <input id="g-home" x-model="gEdit.home_country" maxlength="2" class="field uppercase font-mono font-bold" />
+        </div>
         <div class="sm:col-span-6 flex flex-wrap gap-2 justify-end pt-1">
-          <button type="button" @click="archiveGrant()" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 text-zinc-400 hover:text-rose-300">Archive grant</button>
-          <button type="submit" :disabled="busy === 'grant'" class="rounded-lg px-4 py-2 text-sm bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-50" x-text="busy === 'grant' ? 'Saving…' : 'Save details'"></button>
+          <button type="button" @click="archiveGrant()" class="rounded-lg px-3 py-2 text-xs font-semibold border border-neutral-800 text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 transition">Archive grant</button>
+          <button type="submit" :disabled="busy === 'grant'" class="rounded-lg px-4 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 disabled:opacity-50 transition" x-text="busy === 'grant' ? 'Saving…' : 'Save details'"></button>
         </div>
       </form>
 
+      <!-- Rules Section -->
       <div class="card p-5">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div><h3 class="text-sm font-medium text-zinc-200">Rules we check automatically</h3><p class="text-xs text-zinc-500">Blocking rules stop an expense. Warning rules let it through in amber.</p></div>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-white/5 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white">Rules we check automatically</h3>
+            <p class="text-xs text-neutral-400">Blocking rules stop an expense. Warning rules let it through in amber.</p>
+          </div>
           <div class="flex-1"></div>
-          <button type="button" @click="importOpen = !importOpen" class="rounded-lg px-3 py-2 text-sm border border-zinc-700 hover:bg-zinc-900" x-text="importOpen ? 'Close import' : 'Import from agreement'"></button>
-          <button type="button" @click="openRule()" class="rounded-lg px-3 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white">Add rule</button>
+          <div class="flex gap-2">
+            <button type="button" @click="importOpen = !importOpen" class="rounded-lg px-3 py-2 text-xs font-medium border border-neutral-800 hover:bg-neutral-900 transition" x-text="importOpen ? 'Close import' : 'Import from agreement'"></button>
+            <button type="button" @click="openRule()" class="rounded-lg px-3 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition">Add rule</button>
+          </div>
         </div>
 
-        <div x-show="importOpen" x-cloak class="mt-4 rounded-xl border border-zinc-800 p-4 space-y-3">
-<label class="block rounded-xl border border-dashed p-4 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], false)">
+        <!-- Agreement Import Tray -->
+        <div x-show="importOpen" x-cloak class="mt-4 rounded-xl border border-neutral-800 bg-neutral-950 p-4 space-y-3">
+          <label class="block rounded-xl border border-dashed p-5 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-neutral-700 hover:border-neutral-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], false)">
             <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" @change="uploadFile($event.target.files[0], false); $event.target.value = ''" />
-            <span class="text-sm text-zinc-300" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
-            <span class="block text-xs text-zinc-500 mt-0.5">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
+            <span class="text-sm text-neutral-300 block font-semibold" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
+            <span class="block text-xs text-neutral-500 mt-0.5 font-mono">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
           </label>
-          <p x-show="importFile" class="text-xs text-zinc-500" x-text="importFile"></p>
-          <div class="text-center text-xs text-zinc-600">or paste the text</div>
+          <p x-show="importFile" class="text-xs text-emerald-400 font-mono" x-text="importFile"></p>
+          <div class="text-center text-xs text-neutral-600 font-mono">or paste the text</div>
           <label for="imp-text" class="sr-only">Agreement text</label>
-          <textarea id="imp-text" x-model="importText" rows="6" class="field resize-y text-xs"></textarea>
-          <div class="flex items-center gap-3"><button type="button" @click="runImport(false)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-4 py-2 text-sm bg-emerald-400 text-zinc-950 font-semibold hover:bg-emerald-300 disabled:opacity-50" x-text="busy === 'import' ? 'Reading…' : 'Read agreement'"></button><span class="text-xs text-zinc-500">Nothing is saved until you choose what to add.</span></div>
+          <textarea id="imp-text" x-model="importText" rows="5" class="field resize-y text-xs font-mono"></textarea>
+          <div class="flex items-center gap-3">
+            <button type="button" @click="runImport(false)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-4 py-2 text-xs font-bold bg-emerald-400 text-black hover:bg-emerald-300 disabled:opacity-50 transition" x-text="busy === 'import' ? 'Reading…' : 'Read agreement'"></button>
+            <span class="text-xs text-neutral-500">Nothing is saved until you choose what to add.</span>
+          </div>
+
+          <!-- Detected Policies Checklist -->
           <template x-if="importRes && !importRes.forNew">
-            <div class="space-y-3 fade-in">
-              <p class="text-xs text-zinc-500" x-text="importRes.source === 'ai' ? 'Read by AI. Check each rule before adding.' : 'AI is off, so only simple caps and foreign-contractor clauses were recognised.'"></p>
-              <template x-for="(p, i) in importRes.policies" :key="p.id"><label class="flex gap-3 items-start text-sm card p-3 cursor-pointer"><input type="checkbox" x-model="importPick[i]" class="mt-1 accent-emerald-400" /><span><span class="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 mr-1" x-text="ruleKind(p.type)"></span><span class="text-zinc-200" x-text="ruleText(p)"></span><br><span class="text-xs text-zinc-500" x-text="p.description"></span></span></label></template>
-              <template x-if="importRes.text_only.length"><div><div class="text-xs text-zinc-400 mb-1">Clauses kept as text (reviewed by the AI second opinion):</div><ul class="text-xs text-zinc-500 space-y-1 list-disc pl-5"><template x-for="t in importRes.text_only.slice(0, 8)" :key="t"><li x-text="t"></li></template></ul></div></template>
-              <div class="flex gap-2"><button type="button" @click="applyImport()" class="rounded-lg px-4 py-2 text-sm bg-zinc-100 text-zinc-900 hover:bg-white" x-text="`Add ${importPick.filter(Boolean).length} rules`"></button><button type="button" x-show="importRes.grant.total_funding || importRes.grant.start_date" @click="fillDetails(importRes.grant, gEdit); toast('Details filled in. Review and save.')" class="rounded-lg px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900">Use detected details</button></div>
+            <div class="space-y-3 fade-in pt-3 border-t border-white/5">
+              <p class="text-xs text-neutral-400 font-medium" x-text="importRes.source === 'ai' ? 'Read by AI. Check each rule before adding.' : 'AI is off, so only simple caps and foreign-contractor clauses were recognised.'"></p>
+              <template x-for="(p, i) in importRes.policies" :key="p.id">
+                <label class="flex gap-3 items-start text-sm card p-3 cursor-pointer">
+                  <input type="checkbox" x-model="importPick[i]" class="mt-1 accent-emerald-400 rounded" />
+                  <div class="min-w-0">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 mr-1 font-mono uppercase font-bold" x-text="ruleKind(p.type)"></span>
+                    <span class="text-neutral-200 font-semibold" x-text="ruleText(p)"></span>
+                    <span class="block text-xs text-neutral-500 mt-0.5" x-text="p.description"></span>
+                  </div>
+                </label>
+              </template>
+              <template x-if="importRes.text_only.length">
+                <div>
+                  <div class="text-xs text-neutral-400 mb-1 font-medium">Clauses kept as text (reviewed by the AI second opinion):</div>
+                  <ul class="text-xs text-neutral-500 space-y-1 list-disc pl-5">
+                    <template x-for="t in importRes.text_only.slice(0, 8)" :key="t"><li x-text="t"></li></template>
+                  </ul>
+                </div>
+              </template>
+              <div class="flex gap-2 pt-1">
+                <button type="button" @click="applyImport()" class="rounded-lg px-4 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition" x-text="`Add ${importPick.filter(Boolean).length} rules`"></button>
+                <button type="button" x-show="importRes.grant.total_funding || importRes.grant.start_date" @click="fillDetails(importRes.grant, gEdit); toast('Details filled in. Review and save.')" class="rounded-lg px-4 py-2 text-xs font-semibold border border-neutral-700 hover:bg-neutral-900 transition">Use detected details</button>
+              </div>
             </div>
           </template>
         </div>
 
+        <!-- Rules Grid -->
         <div class="mt-4 grid sm:grid-cols-2 gap-3">
           <template x-for="p in currentGrant().policies || []" :key="p.id">
-            <div class="rounded-xl border border-zinc-800 p-4 flex flex-col">
-              <div class="flex items-center gap-2"><span class="text-[11px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300" x-text="ruleKind(p.type)"></span><span class="text-xs text-zinc-500 truncate" x-text="p.clause"></span><span x-show="p.severity === 'warning'" class="text-[11px] text-amber-300">warning only</span></div>
-              <p class="mt-2 text-sm text-zinc-200 flex-1" x-text="ruleText(p)"></p>
-              <div class="mt-3 flex gap-3 text-xs"><button type="button" @click="openRule(p)" class="text-zinc-300 hover:text-white">Edit</button><button type="button" @click="removeRule(p)" class="text-zinc-500 hover:text-rose-300">Delete</button></div>
+            <div class="rounded-xl border border-neutral-800 bg-neutral-950 p-4 flex flex-col justify-between hover:border-neutral-700 transition">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 font-mono font-bold uppercase" x-text="ruleKind(p.type)"></span>
+                  <span class="text-xs text-neutral-500 truncate font-mono" x-text="p.clause"></span>
+                  <span x-show="p.severity === 'warning'" class="text-[10px] text-amber-300 font-bold uppercase">warning only</span>
+                </div>
+                <p class="mt-2 text-sm text-neutral-200 font-medium leading-relaxed" x-text="ruleText(p)"></p>
+              </div>
+              <div class="mt-3 flex gap-3 text-xs font-medium border-t border-white/5 pt-2.5">
+                <button type="button" @click="openRule(p)" class="text-neutral-300 hover:text-white">Edit</button>
+                <button type="button" @click="removeRule(p)" class="text-neutral-500 hover:text-rose-400">Delete</button>
+              </div>
             </div>
           </template>
         </div>
-        <p x-show="!(currentGrant().policies || []).length" class="mt-4 text-sm text-zinc-500">No automatic rules yet. Add one, or import them from the agreement.</p>
+        <p x-show="!(currentGrant().policies || []).length" class="mt-4 text-sm text-neutral-500">No automatic rules yet. Add one, or import them from the agreement.</p>
       </div>
 
+      <!-- Other Clauses Section -->
       <div class="card p-5">
-        <h3 class="text-sm font-medium text-zinc-200">Other clauses</h3>
-        <p class="text-xs text-zinc-500">Obligations that can't be checked automatically (reporting, record keeping). The AI second opinion reads these.</p>
-        <ul class="mt-3 space-y-2"><template x-for="(r, i) in textOnlyRules()" :key="i"><li class="flex gap-3 text-sm text-zinc-400 rounded-lg border border-zinc-800 p-3"><span class="flex-1" x-text="r"></span><button type="button" @click="removeClause(r)" class="text-xs text-zinc-500 hover:text-rose-300">Delete</button></li></template></ul>
-        <form class="mt-3 flex gap-2" @submit.prevent="addClause()"><input x-model="newClause" class="field" aria-label="New clause" /><button type="submit" class="rounded-lg px-4 text-sm border border-zinc-700 hover:bg-zinc-900">Add</button></form>
+        <h3 class="text-sm font-bold text-white">Other clauses</h3>
+        <p class="text-xs text-neutral-400 mt-0.5">Obligations that can't be checked automatically (reporting, record keeping). The AI second opinion reads these.</p>
+        <ul class="mt-3 space-y-2">
+          <template x-for="(r, i) in textOnlyRules()" :key="i">
+            <li class="flex gap-3 text-sm text-neutral-300 rounded-lg border border-neutral-800 bg-neutral-950 p-3 items-center">
+              <span class="flex-1 leading-relaxed" x-text="r"></span>
+              <button type="button" @click="removeClause(r)" class="text-xs text-neutral-500 hover:text-rose-400 font-medium">Delete</button>
+            </li>
+          </template>
+        </ul>
+        <form class="mt-3 flex gap-2" @submit.prevent="addClause()">
+          <input x-model="newClause" placeholder="Add custom contract clause text..." class="field text-xs" aria-label="New clause" />
+          <button type="submit" class="rounded-lg px-4 text-xs font-bold border border-neutral-800 hover:bg-neutral-900 text-white">Add</button>
+        </form>
       </div>
     </section>
 
-    <!-- TEAM -->
+    <!-- TEAM TAB -->
     <section x-show="!booting && hasGrants() && tab === 'team'" x-cloak class="space-y-4 fade-in max-w-2xl">
-      <div><h2 class="text-lg font-semibold text-white">Team</h2><p class="text-sm text-zinc-400">People who spend grant money. Per-person limits apply to each of them.</p></div>
-      <form class="card p-4 grid sm:grid-cols-[1fr_1fr_auto] gap-2" @submit.prevent="addMember()">
-        <input x-model="newMember.name" class="field" aria-label="Name" required />
-        <input x-model="newMember.role" class="field" aria-label="Role" />
-        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-semibold bg-emerald-400 text-zinc-950 hover:bg-emerald-300">Add</button>
+      <div>
+        <h2 class="text-lg font-bold text-white tracking-tight">Team</h2>
+        <p class="text-xs text-neutral-400 mt-0.5">People who spend grant money. Per-person limits apply to each of them.</p>
+      </div>
+
+      <form class="card p-4 grid sm:grid-cols-[1fr_1fr_auto] gap-2.5" @submit.prevent="addMember()">
+        <input x-model="newMember.name" placeholder="Full name" class="field text-xs font-medium" aria-label="Name" required />
+        <input x-model="newMember.role" placeholder="Role (e.g. Lead Researcher)" class="field text-xs" aria-label="Role" />
+        <button type="submit" class="rounded-lg px-4 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition">Add</button>
       </form>
-      <ul class="card divide-y divide-zinc-800">
+
+      <ul class="card divide-y divide-neutral-800">
         <template x-for="m in state.team_members" :key="m.id">
           <li class="flex flex-wrap items-center gap-3 p-4">
-            <span class="w-8 h-8 rounded-full bg-zinc-800 grid place-items-center text-xs" x-text="initials(m.name)"></span>
+            <span class="size-8 rounded-full bg-neutral-800 grid place-items-center text-xs font-mono font-bold text-neutral-300" x-text="initials(m.name)"></span>
             <template x-if="memberEdit.id !== m.id">
-              <div class="flex-1 min-w-0 flex items-center gap-3"><div class="flex-1 min-w-0"><div class="text-sm text-zinc-200" x-text="m.name"></div><div class="text-xs text-zinc-500" x-text="m.role"></div></div><span class="num text-xs text-zinc-400" x-text="money((dash.by_spender || {})[m.name] || 0)"></span><button type="button" @click="memberEdit = { id: m.id, name: m.name, role: m.role }" class="text-xs text-zinc-300 hover:text-white">Edit</button><button type="button" @click="removeMember(m)" class="text-xs text-zinc-400 hover:text-rose-300">Remove</button></div>
+              <div class="flex-1 min-w-0 flex items-center gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-neutral-200" x-text="m.name"></div>
+                  <div class="text-xs text-neutral-500" x-text="m.role || 'Team Member'"></div>
+                </div>
+                <span class="num text-xs font-mono text-neutral-400" x-text="money((dash.by_spender || {})[m.name] || 0)"></span>
+                <button type="button" @click="memberEdit = { id: m.id, name: m.name, role: m.role }" class="text-xs text-neutral-300 hover:text-white">Edit</button>
+                <button type="button" @click="removeMember(m)" class="text-xs text-neutral-400 hover:text-rose-400">Remove</button>
+              </div>
             </template>
             <template x-if="memberEdit.id === m.id">
-              <form class="flex-1 min-w-0 flex flex-wrap gap-2" @submit.prevent="saveMember()"><input x-model="memberEdit.name" class="field flex-1 min-w-[8rem]" aria-label="Name" required /><input x-model="memberEdit.role" class="field flex-1 min-w-[8rem]" aria-label="Role" /><button type="submit" class="rounded-lg px-3 text-sm bg-zinc-100 text-zinc-900">Save</button><button type="button" @click="memberEdit = {}" class="rounded-lg px-3 text-sm border border-zinc-700">Cancel</button></form>
+              <form class="flex-1 min-w-0 flex flex-wrap gap-2" @submit.prevent="saveMember()">
+                <input x-model="memberEdit.name" class="field flex-1 min-w-[8rem] text-xs" aria-label="Name" required />
+                <input x-model="memberEdit.role" class="field flex-1 min-w-[8rem] text-xs" aria-label="Role" />
+                <button type="submit" class="rounded-lg px-3 text-xs font-bold bg-white text-black">Save</button>
+                <button type="button" @click="memberEdit = {}" class="rounded-lg px-3 text-xs font-semibold border border-neutral-700">Cancel</button>
+              </form>
             </template>
           </li>
         </template>
@@ -578,162 +1099,387 @@
     </section>
   </main>
 
-  <!-- Rule editor -->
-  <div x-show="ruleOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="ruleOpen = false" role="dialog" aria-modal="true" aria-labelledby="rule-title">
+  <!-- MODALS -->
+
+  <!-- Rule Editor Modal -->
+  <div x-show="ruleOpen" x-cloak class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md grid place-items-center p-4 overflow-y-auto" @keydown.escape.window="ruleOpen = false" role="dialog" aria-modal="true" aria-labelledby="rule-title">
     <form class="card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="saveRule()">
-      <h3 id="rule-title" class="text-white font-semibold" x-text="rd._editing ? 'Edit rule' : 'Add a rule'"></h3>
+      <div class="flex items-center justify-between border-b border-white/5 pb-2">
+        <h3 id="rule-title" class="text-white font-semibold" x-text="rd._editing ? 'Edit rule' : 'Add a rule'"></h3>
+        <button type="button" @click="ruleOpen = false" class="text-neutral-400 hover:text-white"><svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
-        <div><label for="rd-type" class="block text-sm text-zinc-300 mb-1.5">Kind of rule</label>
-          <select id="rd-type" x-model="rd.type" class="field"><template x-for="k in ruleKinds" :key="k"><option :value="k" x-text="ruleKind(k)"></option></template></select></div>
-        <div><label for="rd-clause" class="block text-sm text-zinc-300 mb-1.5">Clause label</label><input id="rd-clause" x-model="rd.clause" class="field" /></div>
+        <div>
+          <label for="rd-type" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Kind of rule</label>
+          <select id="rd-type" x-model="rd.type" class="field cursor-pointer">
+            <template x-for="k in ruleKinds" :key="k"><option :value="k" x-text="ruleKind(k)"></option></template>
+          </select>
+        </div>
+        <div>
+          <label for="rd-clause" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Clause label</label>
+          <input id="rd-clause" x-model="rd.clause" placeholder="e.g. Section 4.2" class="field" />
+        </div>
       </div>
 
       <template x-if="['category_cap','spender_cap','vendor_cap'].includes(rd.type)">
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
-            <div><label for="rd-cap" class="block text-sm text-zinc-300 mb-1.5">Limit amount</label><input id="rd-cap" type="number" min="0.01" step="0.01" x-model.number="rd.cap" class="field num" required /></div>
-            <div><label for="rd-cat" class="block text-sm text-zinc-300 mb-1.5">Category</label><input id="rd-cat" x-model="rd.category" list="category-list" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty to cover all spending.</p></div>
+            <div>
+              <label for="rd-cap" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Limit amount</label>
+              <input id="rd-cap" type="number" min="0.01" step="0.01" x-model.number="rd.cap" class="field num font-bold" required />
+            </div>
+            <div>
+              <label for="rd-cat" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Category</label>
+              <input id="rd-cat" x-model="rd.category" list="category-list" class="field" />
+              <p class="mt-1 text-xs text-neutral-500">Leave empty to cover all spending.</p>
+            </div>
           </div>
-          <div x-show="rd.type === 'spender_cap'"><label for="rd-sp" class="block text-sm text-zinc-300 mb-1.5">Applies to</label><select id="rd-sp" x-model="rd.spender" class="field"><option value="">Each person separately</option><template x-for="m in state.team_members" :key="m.id"><option :value="m.id" x-text="m.name"></option></template></select></div>
-          <div x-show="rd.type === 'vendor_cap'"><label for="rd-v" class="block text-sm text-zinc-300 mb-1.5">Vendor</label><input id="rd-v" x-model="rd.vendor" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty to limit each vendor separately.</p></div>
+          <div x-show="rd.type === 'spender_cap'">
+            <label for="rd-sp" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Applies to</label>
+            <select id="rd-sp" x-model="rd.spender" class="field cursor-pointer">
+              <option value="">Each person separately</option>
+              <template x-for="m in state.team_members" :key="m.id"><option :value="m.id" x-text="m.name"></option></template>
+            </select>
+          </div>
+          <div x-show="rd.type === 'vendor_cap'">
+            <label for="rd-v" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Vendor</label>
+            <input id="rd-v" x-model="rd.vendor" class="field" />
+            <p class="mt-1 text-xs text-neutral-500">Leave empty to limit each vendor separately.</p>
+          </div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label for="rd-w" class="block text-sm text-zinc-300 mb-1.5">Over what time?</label><select id="rd-w" x-model="rd.windowKind" class="field"><option value="none">The whole grant</option><option value="rolling">Any rolling period</option><option value="fiscal">Each fiscal period</option></select></div>
-            <div x-show="rd.windowKind === 'rolling'"><label for="rd-days" class="block text-sm text-zinc-300 mb-1.5">Days</label><input id="rd-days" type="number" min="1" x-model.number="rd.days" class="field num" /></div>
-            <div x-show="rd.windowKind === 'fiscal'"><label for="rd-per" class="block text-sm text-zinc-300 mb-1.5">Period</label><select id="rd-per" x-model="rd.period" class="field"><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Year</option></select></div>
+            <div>
+              <label for="rd-w" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Over what time?</label>
+              <select id="rd-w" x-model="rd.windowKind" class="field cursor-pointer">
+                <option value="none">The whole grant</option>
+                <option value="rolling">Any rolling period</option>
+                <option value="fiscal">Each fiscal period</option>
+              </select>
+            </div>
+            <div x-show="rd.windowKind === 'rolling'">
+              <label for="rd-days" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Days</label>
+              <input id="rd-days" type="number" min="1" x-model.number="rd.days" class="field num font-semibold" />
+            </div>
+            <div x-show="rd.windowKind === 'fiscal'">
+              <label for="rd-per" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Period</label>
+              <select id="rd-per" x-model="rd.period" class="field cursor-pointer">
+                <option value="month">Month</option>
+                <option value="quarter">Quarter</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
           </div>
-          <div x-show="rd.windowKind === 'fiscal'"><label for="rd-sm" class="block text-sm text-zinc-300 mb-1.5">Fiscal year starts in month</label><input id="rd-sm" type="number" min="1" max="12" x-model.number="rd.start_month" class="field num" /></div>
-          <div><label for="rd-warn" class="block text-sm text-zinc-300 mb-1.5">Warn when it reaches <span class="num" x-text="rd.warn_at_pct + '%'"></span></label><input id="rd-warn" type="range" min="50" max="100" step="5" x-model.number="rd.warn_at_pct" class="w-full accent-emerald-400" /></div>
+          <div x-show="rd.windowKind === 'fiscal'">
+            <label for="rd-sm" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Fiscal year starts in month</label>
+            <input id="rd-sm" type="number" min="1" max="12" x-model.number="rd.start_month" class="field num font-semibold" />
+          </div>
+          <div>
+            <label for="rd-warn" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Warn when it reaches <span class="num text-emerald-400 font-bold" x-text="rd.warn_at_pct + '%'"></span></label>
+            <input id="rd-warn" type="range" min="50" max="100" step="5" x-model.number="rd.warn_at_pct" class="w-full accent-emerald-400 cursor-pointer" />
+          </div>
         </div>
       </template>
 
       <template x-if="rd.type === 'jurisdiction'">
         <div class="space-y-3">
-          <div><label for="rd-jm" class="block text-sm text-zinc-300 mb-1.5">Vendors must be</label><select id="rd-jm" x-model="rd.jMode" class="field"><option value="allow">Only in these countries</option><option value="block">Not in these countries</option></select></div>
-          <div><label for="rd-cc" class="block text-sm text-zinc-300 mb-1.5">Countries (ISO codes or EU)</label><input id="rd-cc" x-model="rd.countries" class="field" required /><p class="mt-1 text-xs text-zinc-500">Two-letter codes separated by commas, or EU.</p></div>
-          <div><label for="rd-jc" class="block text-sm text-zinc-300 mb-1.5">For these categories</label><input id="rd-jc" x-model="rd.categories" class="field" /><p class="mt-1 text-xs text-zinc-500">Separated by commas. Leave empty for all spending.</p></div>
-          <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" x-model="rd.waivable" class="accent-emerald-400" />Allowed with written approval from the funder</label>
+          <div>
+            <label for="rd-jm" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Vendors must be</label>
+            <select id="rd-jm" x-model="rd.jMode" class="field cursor-pointer">
+              <option value="allow">Only in these countries</option>
+              <option value="block">Not in these countries</option>
+            </select>
+          </div>
+          <div>
+            <label for="rd-cc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Countries (ISO codes or EU)</label>
+            <input id="rd-cc" x-model="rd.countries" class="field uppercase font-mono font-semibold" required />
+            <p class="mt-1 text-xs text-neutral-500 font-mono">Two-letter codes separated by commas, or EU.</p>
+          </div>
+          <div>
+            <label for="rd-jc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">For these categories</label>
+            <input id="rd-jc" x-model="rd.categories" class="field" />
+            <p class="mt-1 text-xs text-neutral-500">Separated by commas. Leave empty for all spending.</p>
+          </div>
+          <label class="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
+            <input type="checkbox" x-model="rd.waivable" class="accent-emerald-400 rounded" />
+            <span>Allowed with written approval from the funder</span>
+          </label>
         </div>
       </template>
+
       <template x-if="rd.type === 'prior_approval'">
         <div class="grid grid-cols-2 gap-3">
-          <div><label for="rd-th" class="block text-sm text-zinc-300 mb-1.5">Needs approval above</label><input id="rd-th" type="number" min="0" step="0.01" x-model.number="rd.threshold" class="field num" required /></div>
-          <div><label for="rd-pc" class="block text-sm text-zinc-300 mb-1.5">Categories</label><input id="rd-pc" x-model="rd.categories" class="field" /><p class="mt-1 text-xs text-zinc-500">Leave empty for any category.</p></div>
+          <div>
+            <label for="rd-th" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Needs approval above</label>
+            <input id="rd-th" type="number" min="0" step="0.01" x-model.number="rd.threshold" class="field num font-bold" required />
+          </div>
+          <div>
+            <label for="rd-pc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Categories</label>
+            <input id="rd-pc" x-model="rd.categories" class="field" />
+            <p class="mt-1 text-xs text-neutral-500">Leave empty for any category.</p>
+          </div>
         </div>
       </template>
+
       <template x-if="rd.type === 'blocked_list'">
         <div class="space-y-3">
-          <div><label for="rd-bc" class="block text-sm text-zinc-300 mb-1.5">Never-allowed categories</label><input id="rd-bc" x-model="rd.categories" class="field" /></div>
-          <div><label for="rd-bv" class="block text-sm text-zinc-300 mb-1.5">Never-allowed vendors</label><input id="rd-bv" x-model="rd.vendors" class="field" /><p class="mt-1 text-xs text-zinc-500">Separated by commas.</p></div>
+          <div>
+            <label for="rd-bc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Never-allowed categories</label>
+            <input id="rd-bc" x-model="rd.categories" class="field" />
+          </div>
+          <div>
+            <label for="rd-bv" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Never-allowed vendors</label>
+            <input id="rd-bv" x-model="rd.vendors" class="field" />
+            <p class="mt-1 text-xs text-neutral-500">Separated by commas.</p>
+          </div>
         </div>
       </template>
+
       <template x-if="rd.type === 'allowed_categories'">
-        <div><label for="rd-ac" class="block text-sm text-zinc-300 mb-1.5">Only these categories are allowed</label><input id="rd-ac" x-model="rd.categories" class="field" required /></div>
+        <div>
+          <label for="rd-ac" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Only these categories are allowed</label>
+          <input id="rd-ac" x-model="rd.categories" class="field" required />
+        </div>
       </template>
+
       <template x-if="rd.type === 'grant_period'">
         <div class="grid grid-cols-2 gap-3">
-          <div><label for="rd-s" class="block text-sm text-zinc-300 mb-1.5">From</label><input id="rd-s" type="date" x-model="rd.start" class="field" required /></div>
-          <div><label for="rd-e" class="block text-sm text-zinc-300 mb-1.5">To</label><input id="rd-e" type="date" x-model="rd.end" class="field" required /></div>
+          <div>
+            <label for="rd-s" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">From</label>
+            <input id="rd-s" type="date" x-model="rd.start" class="field font-mono" required />
+          </div>
+          <div>
+            <label for="rd-e" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">To</label>
+            <input id="rd-e" type="date" x-model="rd.end" class="field font-mono" required />
+          </div>
         </div>
       </template>
 
-      <div><label for="rd-desc" class="block text-sm text-zinc-300 mb-1.5">Original wording (optional)</label><textarea id="rd-desc" x-model="rd.description" rows="2" class="field resize-none text-xs"></textarea></div>
-      <label class="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" x-model="rd.warningOnly" class="accent-amber-400" />Warn only, don't block</label>
-      <p x-show="ruleError" class="text-sm text-rose-300 bg-rose-500/10 rounded-lg px-3 py-2" x-text="ruleError"></p>
-      <div class="flex justify-end gap-2 pt-1"><button type="button" @click="ruleOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="submit" :disabled="busy === 'rule'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'rule' ? 'Saving…' : 'Save rule'"></button></div>
-    </form>
-  </div>
+      <div>
+        <label for="rd-desc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Original wording (optional)</label>
+        <textarea id="rd-desc" x-model="rd.description" rows="2" class="field resize-none text-xs font-mono"></textarea>
+      </div>
 
-  <!-- New grant -->
-  <div x-show="newOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="newOpen = false" role="dialog" aria-modal="true" aria-labelledby="ng-title">
-    <form class="card p-5 w-full max-w-xl max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="createGrant()">
-      <h3 id="ng-title" class="text-white font-semibold">New grant</h3>
-      <p class="text-sm text-zinc-400">Upload or paste the agreement to fill this in automatically, or type the details.</p>
-      <label class="block rounded-xl border border-dashed p-4 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-zinc-700 hover:border-zinc-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], true)">
-            <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" @change="uploadFile($event.target.files[0], true); $event.target.value = ''" />
-            <span class="text-sm text-zinc-300" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
-            <span class="block text-xs text-zinc-500 mt-0.5">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
-          </label>
-          <p x-show="importFile" class="text-xs text-zinc-500" x-text="importFile"></p>
-          <div class="text-center text-xs text-zinc-600">or paste the text</div>
-      <textarea x-model="importText" rows="4" class="field resize-y text-xs" aria-label="Agreement text"></textarea>
-      <button type="button" @click="runImport(true)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-3 py-1.5 text-sm border border-zinc-700 hover:bg-zinc-900 disabled:opacity-50" x-text="busy === 'import' ? 'Reading…' : 'Fill in from agreement'"></button>
-      <p x-show="importRes && importRes.forNew" class="text-xs text-emerald-300" x-text="importRes ? `Found ${importRes.policies.length} rules and ${importRes.text_only.length} other clauses. They'll be added with the grant.` : ''"></p>
-      <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
-        <div class="sm:col-span-6"><label for="ng-name" class="block text-sm text-zinc-300 mb-1.5">Grant name</label><input id="ng-name" x-model="gNew.name" class="field" required /></div>
-        <div class="sm:col-span-4"><label for="ng-amt" class="block text-sm text-zinc-300 mb-1.5">Total award</label><input id="ng-amt" type="number" min="1" step="0.01" x-model.number="gNew.total_funding" class="field num" required /></div>
-        <div class="sm:col-span-2"><label for="ng-cur" class="block text-sm text-zinc-300 mb-1.5">Currency</label><input id="ng-cur" x-model="gNew.currency" maxlength="3" class="field uppercase" required /></div>
-        <div class="sm:col-span-2"><label for="ng-s" class="block text-sm text-zinc-300 mb-1.5">Starts</label><input id="ng-s" type="date" x-model="gNew.start_date" class="field" required /></div>
-        <div class="sm:col-span-2"><label for="ng-e" class="block text-sm text-zinc-300 mb-1.5">Ends</label><input id="ng-e" type="date" x-model="gNew.end_date" class="field" required /></div>
-        <div class="sm:col-span-2"><label for="ng-h" class="block text-sm text-zinc-300 mb-1.5">Home country</label><input id="ng-h" x-model="gNew.home_country" maxlength="2" class="field uppercase" /></div>
-      </div>
-      <div class="space-y-2 text-sm text-zinc-300">
-        <label class="flex items-start gap-2"><input type="checkbox" x-model="gNew.add_total_cap" class="mt-1 accent-emerald-400" /><span>Stop spending above the total award<span class="block text-xs text-zinc-500">Adds a limit equal to the award amount.</span></span></label>
-        <label class="flex items-start gap-2"><input type="checkbox" x-model="gNew.add_period_rule" class="mt-1 accent-emerald-400" /><span>Only allow costs between the start and end dates</span></label>
-      </div>
-      <p x-show="newError" class="text-sm text-rose-300 bg-rose-500/10 rounded-lg px-3 py-2" x-text="newError"></p>
-      <div class="flex justify-end gap-2"><button type="button" @click="newOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="submit" :disabled="busy === 'grant'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'grant' ? 'Creating…' : 'Create grant'"></button></div>
-    </form>
-  </div>
+      <label class="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
+        <input type="checkbox" x-model="rd.warningOnly" class="accent-amber-400 rounded" />
+        <span>Warn only, don't block</span>
+      </label>
 
-  <!-- Edit expense -->
-  <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="editOpen = false" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-    <form class="card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="saveEdit(false)">
-      <h3 id="edit-title" class="text-white font-semibold">Edit expense</h3>
-      <p class="text-sm text-zinc-400">Fix a wrong amount, date or vendor. The change is checked against the grant rules and kept in history.</p>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label for="e-amt" class="block text-sm text-zinc-300 mb-1.5">Amount</label><div class="flex gap-2"><input id="e-amt" type="number" min="0.01" step="0.01" x-model.number="ed.amount" class="field num flex-1 min-w-0" required /><select x-model="ed.currency" class="field num !w-24 shrink-0" aria-label="Currency"><template x-for="c in currencyCodes()" :key="c"><option :value="c" :selected="c === ed.currency" x-text="c"></option></template></select></div></div>
-        <div><label for="e-date" class="block text-sm text-zinc-300 mb-1.5">Date</label><input id="e-date" type="date" x-model="ed.expense_date" class="field" required /></div>
-        <div><label for="e-vendor" class="block text-sm text-zinc-300 mb-1.5">Paid to</label><input id="e-vendor" x-model="ed.vendor" class="field" required /></div>
-        <div><label for="e-loc" class="block text-sm text-zinc-300 mb-1.5">Location</label><input id="e-loc" x-model="ed.location" class="field" /></div>
-        <div><label for="e-who" class="block text-sm text-zinc-300 mb-1.5">Who spent it</label><select id="e-who" x-model="ed.spender_id" class="field"><template x-for="t in state.team_members" :key="t.id"><option :value="t.id" :selected="t.id === ed.spender_id" x-text="t.name"></option></template></select></div>
-        <div><label for="e-cat" class="block text-sm text-zinc-300 mb-1.5">Category</label><input id="e-cat" x-model="ed.category" list="category-list" class="field" required /></div>
-      </div>
-      <div x-show="ed.currency && ed.currency !== grantCurrency()"><label for="e-rate" class="block text-sm text-zinc-300 mb-1.5" x-text="`Your rate: 1 ${ed.currency} in ${grantCurrency()}`"></label><input id="e-rate" type="number" min="0" step="any" x-model.number="ed.fx_rate" class="field num" /><p class="mt-1 text-xs text-zinc-500">Leave empty to use the official rate for the expense date.</p></div>
-      <div><label for="e-note" class="block text-sm text-zinc-300 mb-1.5">Note</label><textarea id="e-note" x-model="ed.content" rows="2" class="field resize-none"></textarea></div>
-      <div><label for="e-reason" class="block text-sm text-zinc-300 mb-1.5">Why are you changing it?</label><input id="e-reason" x-model="ed.reason" class="field" required /></div>
-      <template x-if="editConflict">
-        <div class="rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-sm space-y-1.5">
-          <div class="text-rose-200 font-medium">This change would break a rule</div>
-          <template x-for="f in editConflict.findings.filter(f => f.severity === 'blocking')" :key="f.rule_id + f.code"><p class="text-rose-100/90 text-xs" x-text="f.message"></p></template>
-          <p class="text-xs text-zinc-400">If the ledger must reflect what actually happened, save anyway. It'll show as over the limit.</p>
-        </div>
-      </template>
-      <template x-if="editTarget && editTarget.edits && editTarget.edits.length">
-        <details class="text-xs text-zinc-500"><summary class="cursor-pointer">Changed <span x-text="editTarget.edits.length"></span> time(s) before</summary>
-          <ul class="mt-2 space-y-1"><template x-for="(e, i) in editTarget.edits.slice().reverse()" :key="i"><li x-text="`${niceDateTime(e.at)} · ${e.by || 'unknown'}: ${e.reason} (${Object.keys(e.changes).join(', ')})`"></li></template></ul></details>
-      </template>
+      <p x-show="ruleError" class="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/25 rounded-lg px-3 py-2" x-text="ruleError"></p>
+
       <div class="flex justify-end gap-2 pt-1">
-        <button type="button" @click="editOpen = false" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button>
-        <button type="button" x-show="editConflict" @click="saveEdit(true)" :disabled="busy === 'edit'" class="px-4 py-2 text-sm rounded-lg bg-rose-500 text-white hover:bg-rose-400">Save anyway</button>
-        <button type="submit" x-show="!editConflict" :disabled="busy === 'edit'" class="px-4 py-2 text-sm rounded-lg bg-emerald-400 text-zinc-950 font-semibold disabled:opacity-50" x-text="busy === 'edit' ? 'Checking…' : 'Save changes'"></button>
+        <button type="button" @click="ruleOpen = false" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-700">Cancel</button>
+        <button type="submit" :disabled="busy === 'rule'" class="px-4 py-2 text-xs font-bold rounded-lg bg-white text-black hover:bg-neutral-200 disabled:opacity-50 transition" x-text="busy === 'rule' ? 'Saving…' : 'Save rule'"></button>
       </div>
     </form>
   </div>
 
-  <div x-show="delTarget" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="delTarget = null" role="dialog" aria-modal="true" aria-labelledby="del-title">
-    <div class="card p-5 w-full max-w-md">
+  <!-- New Grant Modal -->
+  <div x-show="newOpen" x-cloak class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md grid place-items-center p-4 overflow-y-auto" @keydown.escape.window="newOpen = false" role="dialog" aria-modal="true" aria-labelledby="ng-title">
+    <form class="card p-5 w-full max-w-xl max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="createGrant()">
+      <div class="flex items-center justify-between border-b border-white/5 pb-2">
+        <div>
+          <h3 id="ng-title" class="text-white font-semibold">New grant</h3>
+          <p class="text-xs text-neutral-400 mt-0.5">Upload or paste the agreement to fill this in automatically, or type the details.</p>
+        </div>
+        <button type="button" @click="newOpen = false" class="text-neutral-400 hover:text-white"><svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+
+      <label class="block rounded-xl border border-dashed p-4 text-center cursor-pointer transition" :class="dragging ? 'border-emerald-400 bg-emerald-400/5' : 'border-neutral-700 hover:border-neutral-500'" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; uploadFile($event.dataTransfer.files[0], true)">
+        <input type="file" class="sr-only" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" @change="uploadFile($event.target.files[0], true); $event.target.value = ''" />
+        <span class="text-sm text-neutral-300 block font-semibold" x-text="busy === 'import' ? 'Reading the file…' : 'Upload the grant file'"></span>
+        <span class="block text-xs text-neutral-500 mt-0.5 font-mono">PDF, Word (.docx) or text. Drop it here or click to choose.</span>
+      </label>
+
+      <p x-show="importFile" class="text-xs text-emerald-400 font-mono" x-text="importFile"></p>
+      <div class="text-center text-xs text-neutral-600 font-mono">or paste the text</div>
+      <textarea x-model="importText" rows="3" placeholder="Paste clauses or full grant letter..." class="field resize-y text-xs font-mono" aria-label="Agreement text"></textarea>
+      
+      <button type="button" @click="runImport(true)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-3 py-1.5 text-xs font-semibold border border-neutral-700 hover:bg-neutral-900 disabled:opacity-50 transition" x-text="busy === 'import' ? 'Reading…' : 'Fill in from agreement'"></button>
+      <p x-show="importRes && importRes.forNew" class="text-xs text-emerald-300 font-medium" x-text="importRes ? `Found ${importRes.policies.length} rules and ${importRes.text_only.length} other clauses. They'll be added with the grant.` : ''"></p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+        <div class="sm:col-span-6">
+          <label for="ng-name" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Grant name</label>
+          <input id="ng-name" x-model="gNew.name" class="field" required />
+        </div>
+        <div class="sm:col-span-4">
+          <label for="ng-amt" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Total award</label>
+          <input id="ng-amt" type="number" min="1" step="0.01" x-model.number="gNew.total_funding" class="field num font-bold" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="ng-cur" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Currency</label>
+          <input id="ng-cur" x-model="gNew.currency" maxlength="3" class="field uppercase font-mono font-bold" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="ng-s" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Starts</label>
+          <input id="ng-s" type="date" x-model="gNew.start_date" class="field font-mono" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="ng-e" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Ends</label>
+          <input id="ng-e" type="date" x-model="gNew.end_date" class="field font-mono" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="ng-h" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Home country</label>
+          <input id="ng-h" x-model="gNew.home_country" maxlength="2" class="field uppercase font-mono font-bold" />
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs text-neutral-300 pt-1">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" x-model="gNew.add_total_cap" class="mt-0.5 accent-emerald-400 rounded" />
+          <span>Stop spending above the total award<span class="block text-xs text-neutral-500">Adds a limit equal to the award amount.</span></span>
+        </label>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input type="checkbox" x-model="gNew.add_period_rule" class="mt-0.5 accent-emerald-400 rounded" />
+          <span>Only allow costs between the start and end dates</span>
+        </label>
+      </div>
+
+      <p x-show="newError" class="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/25 rounded-lg px-3 py-2" x-text="newError"></p>
+
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" @click="newOpen = false" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-700">Cancel</button>
+        <button type="submit" :disabled="busy === 'grant'" class="px-4 py-2 text-xs font-bold rounded-lg bg-white text-black hover:bg-neutral-200 disabled:opacity-50 transition" x-text="busy === 'grant' ? 'Creating…' : 'Create grant'"></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Edit Expense Modal -->
+  <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md grid place-items-center p-4 overflow-y-auto" @keydown.escape.window="editOpen = false" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+    <form class="card p-5 w-full max-w-lg max-h-[92vh] overflow-y-auto scroll space-y-3" @submit.prevent="saveEdit(false)">
+      <div class="flex items-center justify-between border-b border-white/5 pb-2">
+        <div>
+          <h3 id="edit-title" class="text-white font-semibold">Edit expense</h3>
+          <p class="text-xs text-neutral-400 mt-0.5">Fix a wrong amount, date or vendor. The change is checked against the grant rules and kept in history.</p>
+        </div>
+        <button type="button" @click="editOpen = false" class="text-neutral-400 hover:text-white"><svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="e-amt" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Amount</label>
+          <div class="flex gap-2">
+            <input id="e-amt" type="number" min="0.01" step="0.01" x-model.number="ed.amount" class="field num flex-1 min-w-0 font-bold" required />
+            <select x-model="ed.currency" class="field num !w-24 shrink-0 font-mono font-semibold" aria-label="Currency">
+              <template x-for="c in currencyCodes()" :key="c"><option :value="c" :selected="c === ed.currency" x-text="c"></option></template>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="e-date" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Date</label>
+          <input id="e-date" type="date" x-model="ed.expense_date" class="field font-mono" required />
+        </div>
+        <div>
+          <label for="e-vendor" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Paid to</label>
+          <input id="e-vendor" x-model="ed.vendor" class="field" required />
+        </div>
+        <div>
+          <label for="e-loc" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Location</label>
+          <input id="e-loc" x-model="ed.location" class="field" />
+        </div>
+        <div>
+          <label for="e-who" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Who spent it</label>
+          <select id="e-who" x-model="ed.spender_id" class="field cursor-pointer">
+            <template x-for="t in state.team_members" :key="t.id"><option :value="t.id" :selected="t.id === ed.spender_id" x-text="t.name"></option></template>
+          </select>
+        </div>
+        <div>
+          <label for="e-cat" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Category</label>
+          <input id="e-cat" x-model="ed.category" list="category-list" class="field" required />
+        </div>
+      </div>
+
+      <div x-show="ed.currency && ed.currency !== grantCurrency()">
+        <label for="e-rate" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5" x-text="`Your rate: 1 ${ed.currency} in ${grantCurrency()}`"></label>
+        <input id="e-rate" type="number" min="0" step="any" x-model.number="ed.fx_rate" class="field num font-mono" />
+        <p class="mt-1 text-xs text-neutral-500">Leave empty to use the official rate for the expense date.</p>
+      </div>
+
+      <div>
+        <label for="e-note" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Note</label>
+        <textarea id="e-note" x-model="ed.content" rows="2" class="field resize-none text-xs"></textarea>
+      </div>
+
+      <div>
+        <label for="e-reason" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1.5">Why are you changing it?</label>
+        <input id="e-reason" x-model="ed.reason" class="field text-xs" required />
+      </div>
+
+      <!-- Breach Alert on Conflict -->
+      <template x-if="editConflict">
+        <div class="rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-xs space-y-1.5 fade-in">
+          <div class="text-rose-200 font-bold uppercase tracking-wider">This change would break a rule</div>
+          <template x-for="f in editConflict.findings.filter(f => f.severity === 'blocking')" :key="f.rule_id + f.code">
+            <p class="text-rose-100 font-medium" x-text="f.message"></p>
+          </template>
+          <p class="text-xs text-neutral-400">If the ledger must reflect what actually happened, save anyway. It'll show as over the limit.</p>
+        </div>
+      </template>
+
+      <template x-if="editTarget && editTarget.edits && editTarget.edits.length">
+        <details class="text-xs text-neutral-500 bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">
+          <summary class="cursor-pointer font-medium">Changed <span x-text="editTarget.edits.length"></span> time(s) before</summary>
+          <ul class="mt-2 space-y-1 font-mono text-[11px]">
+            <template x-for="(e, i) in editTarget.edits.slice().reverse()" :key="i">
+              <li x-text="`${niceDateTime(e.at)} · ${e.by || 'unknown'}: ${e.reason} (${Object.keys(e.changes).join(', ')})`"></li>
+            </template>
+          </ul>
+        </details>
+      </template>
+
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" @click="editOpen = false" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-700">Cancel</button>
+        <button type="button" x-show="editConflict" @click="saveEdit(true)" :disabled="busy === 'edit'" class="px-4 py-2 text-xs font-bold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition">Save anyway</button>
+        <button type="submit" x-show="!editConflict" :disabled="busy === 'edit'" class="px-4 py-2 text-xs font-bold rounded-lg bg-white text-black hover:bg-neutral-200 disabled:opacity-50 transition" x-text="busy === 'edit' ? 'Checking…' : 'Save changes'"></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Delete Expense Modal -->
+  <div x-show="delTarget" x-cloak class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md grid place-items-center p-4" @keydown.escape.window="delTarget = null" role="dialog" aria-modal="true" aria-labelledby="del-title">
+    <div class="card p-5 w-full max-w-md shadow-2xl">
       <h3 id="del-title" class="text-white font-semibold">Remove this expense?</h3>
-      <p class="text-sm text-zinc-400 mt-1" x-text="delTarget ? `${delTarget.vendor} · ${money(delTarget.amount)} on ${niceDate(delTarget.timestamp)}. It stops counting toward limits and is forgotten in Hindsight. A record of the removal stays in history.` : ''"></p>
-      <label for="del-reason" class="block text-sm text-zinc-300 mt-4 mb-1.5">Reason</label>
-      <input id="del-reason" x-model="delReason" class="field" />
-      <div class="flex justify-end gap-2 mt-5"><button type="button" @click="delTarget = null" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Cancel</button><button type="button" @click="doDelete()" class="px-4 py-2 text-sm rounded-lg bg-rose-500 text-white hover:bg-rose-400">Remove</button></div>
+      <p class="text-xs text-neutral-300 mt-2 leading-relaxed" x-text="delTarget ? `${delTarget.vendor} · ${money(delTarget.amount)} on ${niceDate(delTarget.timestamp)}. It stops counting toward limits and is forgotten in Hindsight. A record of the removal stays in history.` : ''"></p>
+      <label for="del-reason" class="block text-xs font-mono uppercase tracking-wider text-neutral-400 mt-4 mb-1.5">Reason</label>
+      <input id="del-reason" x-model="delReason" class="field text-xs" />
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" @click="delTarget = null" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-700">Cancel</button>
+        <button type="button" @click="doDelete()" class="px-4 py-2 text-xs font-bold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition">Remove</button>
+      </div>
     </div>
   </div>
 
-  <div x-show="draft" x-cloak class="fixed inset-0 z-50 bg-black/70 grid place-items-center p-4" @keydown.escape.window="draft = ''" role="dialog" aria-modal="true" aria-labelledby="draft-title">
-    <div class="card p-5 w-full max-w-2xl max-h-[90vh] flex flex-col">
-      <h3 id="draft-title" class="text-white font-semibold">Approval request (draft)</h3>
-      <p class="text-sm text-zinc-400">Edit before sending to your program officer.</p>
+  <!-- Draft Approval Request Modal -->
+  <div x-show="draft" x-cloak class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md grid place-items-center p-4" @keydown.escape.window="draft = ''" role="dialog" aria-modal="true" aria-labelledby="draft-title">
+    <div class="card p-5 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between border-b border-white/5 pb-2">
+        <div>
+          <h3 id="draft-title" class="text-white font-semibold">Approval request (draft)</h3>
+          <p class="text-xs text-neutral-400 mt-0.5">Edit before sending to your program officer.</p>
+        </div>
+        <button type="button" @click="draft = ''" class="text-neutral-400 hover:text-white"><svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
       <textarea x-model="draft" class="field mt-3 flex-1 min-h-[18rem] font-mono text-xs leading-relaxed" aria-label="Draft text"></textarea>
-      <div class="flex justify-end gap-2 mt-4"><button type="button" @click="draft = ''" class="px-4 py-2 text-sm rounded-lg border border-zinc-700">Close</button><button type="button" @click="copyDraft()" class="px-4 py-2 text-sm rounded-lg bg-zinc-100 text-zinc-900">Copy text</button></div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" @click="draft = ''" class="px-4 py-2 text-xs font-semibold rounded-lg border border-neutral-700">Close</button>
+        <button type="button" @click="copyDraft()" class="px-4 py-2 text-xs font-bold rounded-lg bg-white text-black hover:bg-neutral-200 transition">Copy text</button>
+      </div>
     </div>
   </div>
 
-  <div class="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] max-w-sm" aria-live="polite">
-    <template x-for="t in toasts" :key="t.id"><div class="card px-4 py-3 text-sm shadow-xl fade-in" :class="t.kind === 'error' ? 'border-rose-500/40 text-rose-200' : 'border-emerald-500/30 text-zinc-200'" x-text="t.text"></div></template>
+  <!-- Toast Notifications Stack -->
+  <div class="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none" aria-live="polite">
+    <template x-for="t in toasts" :key="t.id">
+      <div class="card p-3 text-xs font-medium shadow-2xl fade-in pointer-events-auto flex items-start gap-2.5" :class="t.kind === 'error' ? 'border-rose-500/40 text-rose-200 bg-rose-950/80' : 'border-emerald-500/40 text-emerald-100 bg-neutral-950/90'">
+        <span class="font-bold shrink-0 mt-0.5" :class="t.kind === 'error' ? 'text-rose-400' : 'text-emerald-400'" x-text="t.kind === 'error' ? '✕' : '✓'"></span>
+        <span x-text="t.text" class="leading-relaxed flex-1"></span>
+      </div>
+    </template>
   </div>
 
-  <datalist id="category-list"><template x-for="c in categoryOptions()" :key="c"><option :value="c"></option></template></datalist>
+  <datalist id="category-list">
+    <template x-for="c in categoryOptions()" :key="c"><option :value="c"></option></template>
+  </datalist>
 
 <script>
 const PALETTE = ['#34d399', '#60a5fa', '#a78bfa', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#a3e635', '#e879f9', '#94a3b8'];
@@ -968,13 +1714,13 @@ function app() {
     vendorOptions() { return [...new Set(this.state.memories.filter(m => m.grant_id === this.grantId).map(m => m.vendor))].slice(0, 30); },
     recent() { return this.state.memories.filter(m => m.grant_id === this.grantId).slice().reverse().slice(0, 5); },
     donut() { const e = Object.entries(this.dash.by_category || {}); const t = e.reduce((a, [, v]) => a + v, 0) || 1; let off = 0; return e.map(([c, v]) => { const pct = v / t * 100; const s = { c, v, pct, offset: off }; off += pct; return s; }); },
-    donutGradient() { const d = this.donut(); if (!d.length) return '#27272a'; return 'conic-gradient(' + d.map(x => `${this.catColor(x.c)} ${x.offset}% ${x.offset + x.pct}%`).join(', ') + ')'; },
+    donutGradient() { const d = this.donut(); if (!d.length) return '#171717'; return 'conic-gradient(' + d.map(x => `${this.catColor(x.c)} ${x.offset}% ${x.offset + x.pct}%`).join(', ') + ')'; },
     topLimits() { return (this.v().utilization || []).slice().sort((a, b) => b.pct_after - a.pct_after).slice(0, 3); },
     seg(u) { const scale = Math.max(u.cap, u.projected); return { prior: u.prior / scale * 100, add: (u.projected - u.prior) / scale * 100, cap: u.cap / scale * 100 }; },
     tone(s) {
-      if (s === 'CLAWBACK_RISK_DETECTED') return { title: "Don't spend this yet", short: 'like a problem', icon: '✕', text: 'text-rose-300', chip: 'bg-rose-500/15 text-rose-300' };
-      if (s === 'APPROVED_WITH_WARNINGS') return { title: 'Okay, but be careful', short: 'okay with caveats', icon: '!', text: 'text-amber-300', chip: 'bg-amber-500/15 text-amber-300' };
-      return { title: 'Good to go', short: 'fine', icon: '✓', text: 'text-emerald-300', chip: 'bg-emerald-500/15 text-emerald-300' };
+      if (s === 'CLAWBACK_RISK_DETECTED') return { title: "Don't spend this yet", short: 'like a problem', icon: '✕', text: 'text-rose-400', chip: 'bg-rose-500/15 text-rose-300 border border-rose-500/30' };
+      if (s === 'APPROVED_WITH_WARNINGS') return { title: 'Okay, but be careful', short: 'okay with caveats', icon: '!', text: 'text-amber-400', chip: 'bg-amber-500/15 text-amber-300 border border-amber-500/30' };
+      return { title: 'Good to go', short: 'fine', icon: '✓', text: 'text-emerald-400', chip: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' };
     },
     headlineText() {
       const v = this.v(), b = v.findings.filter(f => f.severity === 'blocking').length, w = v.findings.length - b;
@@ -983,7 +1729,7 @@ function app() {
       return `Fits every rule on this grant. Filed under ${v.category}.`;
     },
     plain(f) { return f.message.replace(/^[^:]+:\s*/, ''); },
-    riskColor(n) { return n >= 70 ? 'text-rose-300' : n >= 30 ? 'text-amber-300' : 'text-emerald-300'; },
+    riskColor(n) { return n >= 70 ? 'text-rose-400' : n >= 30 ? 'text-amber-400' : 'text-emerald-400'; },
     scoreColor(n) { return n >= 80 ? '#34d399' : n >= 50 ? '#fbbf24' : '#fb7185'; },
     healthText() { const g = this.dash.guardrails || []; const o = g.filter(x => x.state === 'over').length, w = g.filter(x => x.state === 'warn').length; if (o) return `${o} limit already over`; if (w) return `${w} limit${w > 1 ? 's' : ''} getting close`; return 'All limits comfortable'; },
     paceText() {
@@ -995,16 +1741,16 @@ function app() {
     locHint() {
       const j = this.preview?.with_memory?.jurisdiction;
       if (!this.form.location.trim() || !j) return { text: '', cls: '' };
-      if (j.status === 'resolved') return { text: `Recognised as ${j.country}`, cls: 'text-zinc-500' };
-      if (j.status === 'ambiguous') return { text: `Could mean ${j.candidates.join(' or ')}. Add the country.`, cls: 'text-amber-300' };
-      return { text: "Didn't recognise the country. Try \"City, Country\".", cls: 'text-amber-300' };
+      if (j.status === 'resolved') return { text: `Recognised as ${j.country}`, cls: 'text-neutral-500 font-mono' };
+      if (j.status === 'ambiguous') return { text: `Could mean ${j.candidates.join(' or ')}. Add the country.`, cls: 'text-amber-400' };
+      return { text: "Didn't recognise the country. Try \"City, Country\".", cls: 'text-amber-400' };
     },
     syncBadge(s) {
       if (s !== 'synced' && this.health.hindsight?.status === 'disabled') s = 'local_only';
-      return ({ synced: { label: 'In Hindsight', cls: 'bg-emerald-500/10 text-emerald-300' }, failed: { label: 'Sync failed', cls: 'bg-rose-500/10 text-rose-300' },
-        local_only: { label: 'Local only', cls: 'bg-zinc-800 text-zinc-400' } })[s] || { label: 'Waiting', cls: 'bg-amber-500/10 text-amber-300' };
+      return ({ synced: { label: 'In Hindsight', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' }, failed: { label: 'Sync failed', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/25' },
+        local_only: { label: 'Local only', cls: 'bg-neutral-900 text-neutral-400 border-neutral-800' } })[s] || { label: 'Waiting', cls: 'bg-amber-500/10 text-amber-300 border-amber-500/25' };
     },
-    memoryDot() { const h = this.health.hindsight; return !h ? 'bg-zinc-600' : h.status === 'ok' ? 'bg-emerald-400' : h.status === 'disabled' ? 'bg-zinc-500' : 'bg-rose-400'; },
+    memoryDot() { const h = this.health.hindsight; return !h ? 'bg-neutral-600' : h.status === 'ok' ? 'bg-emerald-400' : h.status === 'disabled' ? 'bg-neutral-500' : 'bg-rose-400'; },
     memoryLabel() { const h = this.health.hindsight; if (!h) return 'Checking memory…'; if (h.status === 'ok') return `Hindsight connected · ${this.dash.sync?.synced || 0}/${this.dash.entries || 0} synced`; if (h.status === 'disabled') return 'Memory: local only'; return 'Hindsight unreachable'; },
     hindsightText() { const h = this.health.hindsight; if (!h) return '…'; if (h.status === 'ok') return `Connected · bank ${h.bank}`; if (h.status === 'disabled') return 'Not configured (no API key)'; return 'Unreachable. Entries are queued.'; },
     syncSummary() { const s = this.dash.sync || {}; return `${s.synced || 0} synced · ${(s.pending || 0) + (s.failed || 0)} waiting · ${s.local_only || 0} local only`; },
