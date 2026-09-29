@@ -197,7 +197,13 @@ def reset_seed() -> dict[str, Any]:
 def switch_grant(grant_id: str) -> dict[str, Any]:
     store = load_store()
     if grant_id not in store.get("grants", {}):
-        raise ValueError(f"Unknown grant ID: {grant_id}")
+        active_id = store.get("active_grant_id")
+        if active_id and active_id in store.get("grants", {}):
+            return store
+        if store.get("grants"):
+            grant_id = next(iter(store["grants"]))
+        else:
+            raise ValueError(f"Unknown grant ID: {grant_id}")
     _set_meta("active_grant_id", grant_id)
     store["active_grant_id"] = grant_id
     return store

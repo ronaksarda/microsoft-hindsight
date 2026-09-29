@@ -16,16 +16,6 @@
           fontFamily: {
             sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace']
-          },
-          animation: {
-            'shimmer': 'shimmer 3s linear infinite',
-            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            shimmer: {
-              from: { backgroundPosition: '0 0' },
-              to: { backgroundPosition: '-200% 0' },
-            }
           }
         }
       }
@@ -39,37 +29,28 @@
       color: #EDEDED;
     }
     .bg-dot-pattern {
-      background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
       background-size: 24px 24px;
       mask-image: radial-gradient(ellipse at 50% 30%, black 40%, transparent 85%);
       -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 40%, transparent 85%);
     }
-    .shimmer-button {
-      background-image: linear-gradient(110deg, #10b981 35%, #6ee7b7 50%, #10b981 65%);
-      background-size: 200% 100%;
-      animation: shimmer 3s infinite linear;
-    }
     .aceternity-box {
-      background: rgba(10, 10, 10, 0.8);
+      background: rgba(10, 10, 10, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 20px 40px -15px rgba(0, 0, 0, 0.9), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 20px 40px -15px rgba(0, 0, 0, 0.9), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
 <body class="min-h-screen text-neutral-200 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-400 bg-black relative overflow-hidden" x-data="loginPage()">
 
-  <!-- Aceternity Spotlight Background Effect -->
-  <div class="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[1200px] h-[550px] bg-gradient-to-b from-emerald-500/15 via-teal-500/5 to-transparent blur-[120px] rounded-full"></div>
-  <div class="pointer-events-none absolute top-1/4 -left-40 w-[600px] h-[600px] bg-cyan-500/10 blur-[140px] rounded-full"></div>
-  <div class="pointer-events-none absolute inset-0 bg-dot-pattern opacity-70"></div>
+  <div class="pointer-events-none absolute inset-0 bg-dot-pattern opacity-50"></div>
 
   <div class="min-h-screen grid lg:grid-cols-12 relative z-10">
     <!-- Story / Branding Hero (7 cols) -->
     <aside class="hidden lg:flex lg:col-span-7 flex-col justify-between p-16 xl:p-20 border-r border-white/10 relative">
-      <!-- Cool Custom Geometric Cyber-Anchor Logo -->
+      <!-- Geometric Anchor Logo -->
       <div class="flex items-center gap-3.5">
-        <div class="relative size-10 rounded-xl bg-neutral-950 border border-white/15 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.25)]">
-          <div class="absolute inset-0 rounded-xl bg-emerald-500/10 blur-[6px]"></div>
+        <div class="relative size-10 rounded-xl bg-neutral-950 border border-white/15 flex items-center justify-center">
           <svg class="size-6 text-emerald-400 relative z-10" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="16" cy="7" r="4.5" stroke="currentColor" stroke-width="2.2"/>
             <circle cx="16" cy="7" r="1.8" fill="#34d399"/>
@@ -84,22 +65,22 @@
         </div>
         <div>
           <span class="font-extrabold text-xl tracking-tight text-white block">GrantAnchor</span>
-          <span class="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-semibold">Zero-Clawback Spending Engine</span>
+          <span class="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-semibold">Spending Compliance</span>
         </div>
       </div>
 
       <!-- Hero Message -->
       <div class="max-w-xl my-auto py-10">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-md text-xs font-mono text-neutral-300 mb-6 shadow-sm">
-          <span class="size-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-          <span class="text-emerald-400 font-semibold">Contract Intelligence</span>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-neutral-900/80 text-xs font-mono text-neutral-300 mb-6">
+          <span class="size-2 rounded-full bg-emerald-500"></span>
+          <span class="text-neutral-200 font-medium">Policy Rules</span>
           <span class="text-neutral-500">·</span>
           <span>Rolling Window Guardrails</span>
         </div>
 
-        <h1 class="text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.1] text-transparent bg-clip-text bg-gradient-to-b from-white via-white/95 to-neutral-500">
+        <h1 class="text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.15] text-white">
           Know if you can spend it, <br/>
-          <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">before you spend it.</span>
+          <span class="text-emerald-400">before you spend it.</span>
         </h1>
 
         <p class="mt-5 text-sm xl:text-base text-neutral-400 leading-relaxed max-w-lg">
@@ -120,7 +101,7 @@
           </div>
           <div class="aceternity-box p-4 rounded-xl relative overflow-hidden group hover:border-violet-500/40 transition duration-300">
             <div class="text-violet-400 text-xs font-mono font-bold uppercase tracking-wider mb-1">03 / Memory</div>
-            <div class="text-sm font-semibold text-white">Hindsight Engine</div>
+            <div class="text-sm font-semibold text-white">Hindsight Memory</div>
             <div class="text-xs text-neutral-400 mt-1 leading-relaxed">Long-term memory so past vendor history is never lost.</div>
           </div>
         </div>
@@ -134,7 +115,7 @@
 
       <div class="flex items-center justify-between text-xs font-mono text-neutral-500 border-t border-white/10 pt-5">
         <span>SQLite local ledger · Salted SHA-256 Auth</span>
-        <span class="text-emerald-400/90">v2.5 Architecture</span>
+        <span class="text-emerald-400/90">v2.5</span>
       </div>
     </aside>
 
@@ -143,7 +124,7 @@
       <div class="w-full max-w-sm">
         <!-- Mobile Logo Header -->
         <div class="lg:hidden flex items-center gap-3 mb-8">
-          <div class="relative size-9 rounded-xl bg-neutral-950 border border-white/15 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+          <div class="relative size-9 rounded-xl bg-neutral-950 border border-white/15 flex items-center justify-center">
             <svg class="size-5 text-emerald-400" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="16" cy="7" r="4.5" stroke="currentColor" stroke-width="2.2"/>
               <path d="M7 13.5H25" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
@@ -153,13 +134,13 @@
           </div>
           <div>
             <span class="font-extrabold text-lg text-white">GrantAnchor</span>
-            <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block font-semibold">Spending Intelligence</span>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block font-semibold">Spending Compliance</span>
           </div>
         </div>
 
         <div class="aceternity-box rounded-2xl p-7 sm:p-8 backdrop-blur-xl relative">
-          <!-- Top subtle glow accent -->
-          <div class="absolute -top-px left-1/2 -translate-x-1/2 w-32 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent"></div>
+          <!-- Top subtle accent border -->
+          <div class="absolute -top-px left-1/2 -translate-x-1/2 w-32 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
 
           <div>
             <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight" x-text="mode === 'login' ? 'Welcome back' : 'Create your account'"></h2>
@@ -194,7 +175,7 @@
 
             <p x-show="error" x-cloak class="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2 leading-relaxed" role="alert" x-text="error"></p>
 
-            <button type="submit" :disabled="busy" class="shimmer-button w-full mt-2 rounded-xl text-neutral-950 font-bold py-3 text-sm transition-all duration-200 shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <button type="submit" :disabled="busy" class="w-full mt-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               <span x-text="busy ? 'One moment…' : (mode === 'login' ? 'Sign in' : 'Create account')"></span>
             </button>
           </form>

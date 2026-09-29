@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GrantAnchor · Autonomous Grant Spending Compliance</title>
-  <meta name="description" content="Check grant spending against your agreement before you commit funds. Zero-clawback intelligence powered by live contract rules and cognitive memory." />
+  <title>GrantAnchor · Grant Spending Compliance</title>
+  <meta name="description" content="Check grant spending against contract rules before committing funds. Evaluates policy caps, rolling windows, and past approvals in real time." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -17,16 +17,6 @@
           fontFamily: {
             sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace']
-          },
-          animation: {
-            'shimmer': 'shimmer 3s linear infinite',
-            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            shimmer: {
-              from: { backgroundPosition: '0 0' },
-              to: { backgroundPosition: '-200% 0' },
-            }
           }
         }
       }
@@ -44,7 +34,7 @@
       font-variant-numeric: tabular-nums;
     }
     .bg-dot-pattern {
-      background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
       background-size: 24px 24px;
       mask-image: radial-gradient(ellipse at 50% 15%, black 40%, transparent 85%);
       -webkit-mask-image: radial-gradient(ellipse at 50% 15%, black 40%, transparent 85%);
@@ -62,7 +52,7 @@
     .card-interactive:hover {
       transform: translateY(-1.5px);
       border-color: rgba(16, 185, 129, 0.35);
-      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9), 0 25px 50px -15px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.08);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9), 0 25px 50px -15px rgba(0, 0, 0, 0.8);
     }
     .field {
       width: 100%;
@@ -80,11 +70,6 @@
       box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
       background: rgba(24, 24, 24, 0.95);
     }
-    .shimmer-button {
-      background-image: linear-gradient(110deg, #10b981 35%, #6ee7b7 50%, #10b981 65%);
-      background-size: 200% 100%;
-      animation: shimmer 3s infinite linear;
-    }
     .scroll::-webkit-scrollbar { width: 5px; height: 5px; }
     .scroll::-webkit-scrollbar-track { background: rgba(10, 10, 10, 0.5); }
     .scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 5px; }
@@ -98,18 +83,17 @@
 </head>
 <body class="min-h-screen text-neutral-200 font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-400 bg-black relative overflow-x-hidden" x-data="app()" x-init="init()">
 
-  <!-- Aceternity Spotlight Background & Dot Grid -->
+  <!-- Background Dot Grid -->
   <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
-    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[1100px] h-[450px] bg-gradient-to-b from-emerald-500/12 via-teal-500/4 to-transparent blur-[120px] rounded-full"></div>
-    <div class="absolute inset-0 bg-dot-pattern opacity-60"></div>
+    <div class="absolute inset-0 bg-dot-pattern opacity-50"></div>
   </div>
 
   <!-- Sticky Top Header -->
   <header class="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-xl">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center gap-3">
-      <!-- Cool Custom Cyber-Anchor Logo -->
+      <!-- Anchor Logo -->
       <div class="flex items-center gap-2.5 shrink-0">
-        <div class="relative size-8 rounded-lg bg-neutral-950 border border-white/15 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+        <div class="relative size-8 rounded-lg bg-neutral-950 border border-white/15 flex items-center justify-center">
           <svg class="size-5 text-emerald-400" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="16" cy="7" r="4.5" stroke="currentColor" stroke-width="2.2"/>
             <circle cx="16" cy="7" r="1.8" fill="#34d399"/>
@@ -146,12 +130,9 @@
 
       <div class="flex-1"></div>
 
-      <!-- Hindsight Memory Status Chip -->
-      <button type="button" @click="showStatus = !showStatus" class="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-950/80 hover:bg-neutral-900 transition" :aria-expanded="showStatus">
-        <span class="relative flex size-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="memoryDot()"></span>
-          <span class="relative inline-flex rounded-full size-2" :class="memoryDot()"></span>
-        </span>
+      <!-- Hindsight Memory Status Indicator (Static, No Glowing LED) -->
+      <button type="button" @click="showStatus = !showStatus" class="hidden md:flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 transition" :aria-expanded="showStatus">
+        <span class="size-2 rounded-full" :class="memoryDot()"></span>
         <span class="font-medium text-neutral-300 font-mono text-[11px]" x-text="memoryLabel()"></span>
       </button>
 
@@ -213,7 +194,7 @@
     <!-- FIRST RUN EMPTY STATE -->
     <section x-show="!booting && !hasGrants()" x-cloak class="max-w-2xl mx-auto py-12 fade-in">
       <div class="text-center">
-        <div class="size-14 rounded-2xl bg-neutral-950 border border-white/10 text-emerald-400 grid place-items-center mx-auto mb-4 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+        <div class="size-14 rounded-2xl bg-neutral-950 border border-white/10 text-emerald-400 grid place-items-center mx-auto mb-4">
           <svg class="size-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         </div>
         <h1 class="text-3xl font-extrabold text-white tracking-tight">Set up your first grant</h1>
@@ -248,7 +229,7 @@
           <div class="text-xs font-mono uppercase tracking-wider text-neutral-400">Budget left</div>
           <div class="mt-2 num text-3xl font-extrabold text-white tracking-tight" x-text="money(dash.remaining)"></div>
           <div class="mt-4 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-            <div class="h-full bg-emerald-400 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div>
+            <div class="h-full bg-emerald-500 rounded-full transition-all duration-500" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div>
           </div>
           <div class="mt-2.5 text-xs text-neutral-400 flex justify-between font-mono">
             <span><span class="num text-neutral-200" x-text="money(dash.spent)"></span> spent</span>
@@ -270,11 +251,11 @@
           <div class="mt-3 space-y-2 text-xs">
             <div>
               <div class="flex justify-between text-neutral-400 font-mono"><span>Time used</span><span class="num text-neutral-200" x-text="pct(dash.period?.pct_elapsed)"></span></div>
-              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]" :style="`width:${dash.period?.pct_elapsed || 0}%`"></div></div>
+              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-sky-400" :style="`width:${dash.period?.pct_elapsed || 0}%`"></div></div>
             </div>
             <div>
               <div class="flex justify-between text-neutral-400 font-mono"><span>Budget used</span><span class="num text-neutral-200" x-text="pct(dash.pct_budget_used)"></span></div>
-              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div>
+              <div class="mt-1 h-1.5 rounded-full bg-neutral-800"><div class="h-full rounded-full bg-emerald-500" :style="`width:${Math.min(100, dash.pct_budget_used || 0)}%`"></div></div>
             </div>
           </div>
           <div class="mt-3 text-xs font-medium" :class="dash.pace === 'ahead' ? 'text-amber-400' : 'text-neutral-400'" x-text="paceText()"></div>
@@ -299,12 +280,12 @@
         </div>
       </div>
 
-      <!-- What We've Learned (Hindsight Cognitive Board) -->
+      <!-- What We've Learned -->
       <div class="card p-6 border-violet-500/25 relative overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-start gap-6">
           <div class="sm:w-72 shrink-0">
             <h2 class="text-base font-bold text-white tracking-tight">What we've learned</h2>
-            <p class="text-xs text-violet-400 font-mono font-semibold mt-1 uppercase tracking-wider" x-text="memStats.level || 'Cognitive Engine'"></p>
+            <p class="text-xs text-violet-400 font-mono font-semibold mt-1 uppercase tracking-wider" x-text="memStats.level || 'Memory Status'"></p>
             <!-- Learning curve: cumulative things remembered, month by month -->
             <div class="mt-4 bg-neutral-950 p-2 rounded-lg border border-neutral-800" role="img" aria-label="Learning curve">
               <div class="flex items-end gap-1 h-14">
@@ -350,7 +331,7 @@
           <div>
             <div class="flex items-center justify-between">
               <h2 class="text-lg font-bold text-white tracking-tight">Can we spend this?</h2>
-              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">Realtime Engine</span>
+              <span class="text-[10px] font-mono text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded font-medium">Pre-spend check</span>
             </div>
             <p class="text-xs text-neutral-400 mt-1.5 leading-relaxed">Fill in the details. The answer updates as you type, checked against <span class="num text-neutral-200 font-semibold" x-text="(dash.enforced_rules || []).length"></span> rules and <span class="num text-neutral-200 font-semibold" x-text="dash.entries || 0"></span> past expenses.</p>
 
@@ -368,7 +349,7 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="f-vendor" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">Paying whom?</label>
-                  <input id="f-vendor" x-model="form.vendor" class="field" autocomplete="off" list="vendors" />
+                  <input id="f-vendor" x-model="form.vendor" placeholder="e.g. Pacific Air, Studio Nord" class="field" autocomplete="off" list="vendors" />
                   <datalist id="vendors">
                     <template x-for="v in vendorOptions()" :key="v"><option :value="v"></option></template>
                   </datalist>
@@ -420,7 +401,7 @@
 
               <div>
                 <label for="f-purpose" class="block text-xs font-mono font-medium uppercase tracking-wider text-neutral-400 mb-1.5">What is it for?</label>
-                <textarea id="f-purpose" x-model="form.purpose" rows="2" placeholder="Project deliverables or purpose..." class="field resize-none text-xs"></textarea>
+                <textarea id="f-purpose" x-model="form.purpose" rows="2" placeholder="e.g. Flight tickets, lab supplies, contractor invoice" class="field resize-none text-xs"></textarea>
               </div>
 
               <!-- Budget Category Quick Selector -->
@@ -444,7 +425,7 @@
                   <svg class="size-3.5 text-neutral-500 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="mt-2.5">
-                  <input x-model="form.prior_approval_ref" class="field !py-1.5 text-xs font-mono" aria-label="Approval reference" />
+                  <input x-model="form.prior_approval_ref" placeholder="e.g. HLRF-PA-12" class="field !py-1.5 text-xs font-mono" aria-label="Approval reference" />
                 </div>
               </details>
             </form>
@@ -491,7 +472,7 @@
                     <div class="w-[30%] bg-rose-500/60"></div>
                   </div>
                   <div class="relative h-0">
-                    <div class="absolute -top-3 w-1.5 h-4 bg-white rounded-full shadow-[0_0_8px_#ffffff] transition-all duration-300" :style="`left:calc(${v().risk_score}% - 3px)`"></div>
+                    <div class="absolute -top-3 w-1.5 h-4 bg-white rounded-full border border-neutral-950 transition-all duration-300" :style="`left:calc(${v().risk_score}% - 3px)`"></div>
                   </div>
                   <div class="flex justify-between text-[11px] font-mono text-neutral-400 mt-2 px-1">
                     <span class="text-emerald-400">Safe</span>
@@ -630,7 +611,7 @@
 
               <!-- Sticky CTAs Bottom -->
               <div class="pt-3 flex flex-col sm:flex-row gap-2">
-                <button type="button" @click="record()" :disabled="!!busy || !(canRecord() || canNoteStop())" class="flex-1 rounded-xl py-3 text-sm font-bold transition-all duration-200 focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'shimmer-button text-neutral-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] focus:ring-emerald-300' : canNoteStop() ? 'border border-rose-500/50 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 focus:ring-rose-400' : 'bg-neutral-800 text-neutral-500'" x-text="recordLabel()"></button>
+                <button type="button" @click="record()" :disabled="!!busy || !(canRecord() || canNoteStop())" class="flex-1 rounded-xl py-3 text-sm font-bold transition-all duration-200 focus:outline-none focus:ring-2 disabled:cursor-not-allowed" :class="canRecord() ? 'bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold focus:ring-emerald-400' : canNoteStop() ? 'border border-rose-500/50 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 focus:ring-rose-400' : 'bg-neutral-800 text-neutral-500'" x-text="recordLabel()"></button>
                 <button type="button" @click="secondOpinion()" :disabled="!!busy || !formReady()" class="rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200 disabled:opacity-50 transition" x-text="busy === 'second' ? 'Thinking…' : 'Ask AI for a second opinion'"></button>
                 <button type="button" x-show="v().status === 'CLAWBACK_RISK_DETECTED'" @click="openDraft()" class="rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border border-neutral-800 hover:bg-neutral-900 text-neutral-200 transition">Draft approval request</button>
               </div>
@@ -847,8 +828,8 @@
       </div>
 
       <form class="flex gap-2" @submit.prevent="ask()">
-        <input x-model="memQ" class="field text-sm" aria-label="Question" />
-        <button type="submit" :disabled="busy === 'ask' || !memQ.trim()" class="shimmer-button rounded-xl px-5 text-sm font-bold text-neutral-950 disabled:opacity-50 transition shadow-sm" x-text="busy === 'ask' ? 'Searching…' : 'Ask'"></button>
+        <input x-model="memQ" placeholder="e.g. What travel expenses were approved for Studio Nord?" class="field text-sm" aria-label="Question" />
+        <button type="submit" :disabled="busy === 'ask' || !memQ.trim()" class="rounded-xl px-5 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-neutral-950 disabled:opacity-50 transition" x-text="busy === 'ask' ? 'Searching…' : 'Ask'"></button>
       </form>
 
       <div class="flex flex-wrap gap-2">
@@ -1088,7 +1069,7 @@
           </template>
         </ul>
         <form class="mt-3 flex gap-2" @submit.prevent="addClause()">
-          <input x-model="newClause" placeholder="Add custom contract clause text..." class="field text-xs" aria-label="New clause" />
+          <input x-model="newClause" placeholder="e.g. Prior written approval required for international travel" class="field text-xs" aria-label="New clause" />
           <button type="submit" class="rounded-lg px-4 text-xs font-bold border border-neutral-800 hover:bg-neutral-900 text-white">Add</button>
         </form>
       </div>
@@ -1103,7 +1084,7 @@
 
       <form class="card p-4 grid sm:grid-cols-[1fr_1fr_auto] gap-2.5" @submit.prevent="addMember()">
         <input x-model="newMember.name" placeholder="Full name" class="field text-xs font-medium" aria-label="Name" required />
-        <input x-model="newMember.role" class="field text-xs" aria-label="Role" />
+        <input x-model="newMember.role" placeholder="Role (e.g. Principal Investigator)" class="field text-xs" aria-label="Role" />
         <button type="submit" class="rounded-lg px-4 py-2 text-xs font-bold bg-white text-black hover:bg-neutral-200 transition">Add</button>
       </form>
 
@@ -1329,7 +1310,7 @@
 
       <p x-show="importFile" class="text-xs text-emerald-400 font-mono" x-text="importFile"></p>
       <div class="text-center text-xs text-neutral-600 font-mono">or paste the text</div>
-      <textarea x-model="importText" rows="3" placeholder="Paste clauses or full grant letter..." class="field resize-y text-xs font-mono" aria-label="Agreement text"></textarea>
+      <textarea x-model="importText" rows="3" placeholder="Paste clauses or grant agreement text..." class="field resize-y text-xs font-mono" aria-label="Agreement text"></textarea>
       
       <button type="button" @click="runImport(true)" :disabled="busy === 'import' || importText.trim().length < 20" class="rounded-lg px-3 py-1.5 text-xs font-semibold border border-neutral-700 hover:bg-neutral-900 disabled:opacity-50 transition" x-text="busy === 'import' ? 'Reading…' : 'Fill in from agreement'"></button>
       <p x-show="importRes && importRes.forNew" class="text-xs text-emerald-300 font-medium" x-text="importRes ? `Found ${importRes.policies.length} rules and ${importRes.text_only.length} other clauses. They'll be added with the grant.` : ''"></p>
