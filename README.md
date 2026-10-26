@@ -176,4 +176,4 @@ tests/      pytest suite (unit, API, browser)
 run_demo.py standalone CLI simulation
 ```
 
-MIT licence.
+All rights reserved. See `LICENSE`.
